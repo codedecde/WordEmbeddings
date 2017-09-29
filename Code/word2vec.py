@@ -62,7 +62,7 @@ class Word2Vec(nn.Module):
             :param steps_per_epoch: Number of steps in a single epoch
         """
         for ix in xrange(n_epochs):
-            print "EPOCH (%d/%d)" % (ix + 1, n_epochs)
+            print "\nEPOCH (%d/%d)" % (ix + 1, n_epochs)
             bar = Progbar(steps_per_epoch)
             for step in xrange(steps_per_epoch):
                 input_tensor, output_tensor, neg_tensor = data_iterator.next()
