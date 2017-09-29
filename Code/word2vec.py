@@ -80,10 +80,11 @@ class Word2Vec(nn.Module):
 
 if __name__ == "__main__":
     # Load the data
-    filename = "../Data/text8"
+    data_dir = "/home/bass/DataDir/Embeddings/"
+    filename = data_dir + "Data/text8"
     THRESHOLD = -1
     data = io.open(filename, encoding='utf-8', mode='r', errors='replace').read(THRESHOLD).split(u' ')[1:]
-    vocab_file = "../Models/Vocab_Mincount_10.pkl"
+    vocab_file = data_dir + "Data/Vocab_Mincount_10.pkl"
     vocab = Vocab()
     vocab.load_file(vocab_file)
     batch_size = 256
@@ -91,7 +92,8 @@ if __name__ == "__main__":
     w2v = Word2Vec(num_classes=len(vocab), embed_size=300)
     steps_per_epoch = len(data) // batch_size if len(data) % batch_size == 0 else (len(data) // batch_size) + 1
     w2v.fit(data_iterator, n_epochs=1, steps_per_epoch=1)
-    w2v.save_embeddings("../Models/python_model.pkl")
+    save_file = data_dir + "Models/word2vec_python.pkl"
+    w2v.save_embeddings(save_file)
 
     # w2v = Word2Vec(20, 10)
     # input_labels = Variable(t.LongTensor(np.array([0, 1, 2, 1], dtype=int)))
