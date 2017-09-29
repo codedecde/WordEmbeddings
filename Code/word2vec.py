@@ -62,7 +62,7 @@ class Word2Vec(nn.Module):
             :param steps_per_epoch: Number of steps in a single epoch
         """
         for ix in xrange(n_epochs):
-            print "EPOCH (%d/%d)" % (ix + 1, n_epochs)
+            print "\nEPOCH (%d/%d)" % (ix + 1, n_epochs)
             bar = Progbar(steps_per_epoch)
             for step in xrange(steps_per_epoch):
                 input_tensor, output_tensor, neg_tensor = data_iterator.next()
@@ -89,11 +89,13 @@ if __name__ == "__main__":
     vocab = Vocab()
     vocab.load_file(vocab_file)
     batch_size = 256
-    data_iterator = iterator(data, vocab, batch_size=batch_size)
+    window_size = 8
+    num_samples = 25
+    data_iterator = iterator(data, vocab, window_size=window_size, num_samples=num_samples, batch_size=batch_size)
     w2v = Word2Vec(num_classes=len(vocab), embed_size=300)
     steps_per_epoch = len(data) // batch_size if len(data) % batch_size == 0 else (len(data) // batch_size) + 1
     w2v.fit(data_iterator, n_epochs=5, steps_per_epoch=steps_per_epoch)
-    save_file = data_dir + "Models/word2vec_python.pkl"
+    save_file = data_dir + "Models/word2vec_skipgram_neg_sample_%d_window_%d.pkl" % (num_samples, window_size)
     w2v.save_embeddings(save_file)
 
     # w2v = Word2Vec(20, 10)
