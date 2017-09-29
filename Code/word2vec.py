@@ -20,8 +20,8 @@ LongTensor = torch.cuda.LongTensor if use_cuda else torch.LongTensor
 class Word2Vec(nn.Module):
     def __init__(self, num_classes, embed_size):
         """
-        :param num_classes: An int. The number of possible classes.
-        :param embed_size: An int. EmbeddingLockup size
+        :param num_classes: The number of possible classes.
+        :param embed_size: EmbeddingLockup size
         """
 
         super(Word2Vec, self).__init__()
@@ -40,11 +40,12 @@ class Word2Vec(nn.Module):
         self.optimizer = optim.Adam(self.parameters(), lr=self.lr, betas=(0.9, 0.999), eps=1e-08, weight_decay=self.l2)
 
     def forward(self, input_tensor, target_tensor, neg_tensor):
-        '''
-            :param target_tensor: batch x window size : The indices of target context windor of Long type
-            :param input_tensor: batch x 1 : The indices of the input word of Long type
-            :param neg_tensor: batch x neg_samples: The indices of the negatively sampled data of Long type
-        '''
+        """
+            :param target_tensor: batch x window size (LongTensor): The indices of target context windor
+            :param input_tensor: batch x 1 (LongTensor): The indices of the input word
+            :param neg_tensor: batch x neg_samples (LongTensor): The indices of the negatively sampled data
+            :return loss (FloatTensor): The mean Negative Sampled Loss over batch
+        """
         [batch_size, window_size] = target_tensor.size()
         input_embedding = self.in_embed(input_tensor)  # batch x n_dim
         target_embedding = self.out_embed(target_tensor)  # batch x Window x n_dim
@@ -55,11 +56,11 @@ class Word2Vec(nn.Module):
         return loss
 
     def fit(self, data_iterator, n_epochs, steps_per_epoch):
-        '''
+        """
             :param data_iterator: The iterator that generates data of form (input_tensor, output_tensor, negative_sampling)
             :param n_epochs: The number of epochs
             :param steps_per_epoch: Number of steps in a single epoch
-        '''
+        """
         for ix in xrange(n_epochs):
             print "EPOCH (%d/%d)" % (ix + 1, n_epochs)
             bar = Progbar(steps_per_epoch)
