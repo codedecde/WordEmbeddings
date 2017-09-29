@@ -15,8 +15,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <math.h>
-// #include <malloc.h>
-#include <stdlib.h>
+#include <malloc.h>
 
 const long long max_size = 2000;         // max length of strings
 const long long N = 40;                  // number of closest words that will be shown
@@ -67,7 +66,6 @@ int main(int argc, char **argv) {
   }
   fclose(f);
   while (1) {
-  {
     for (a = 0; a < N; a++) bestd[a] = 0;
     for (a = 0; a < N; a++) bestw[a][0] = 0;
     printf("Enter word or sentence (EXIT to break): ");
@@ -103,7 +101,7 @@ int main(int argc, char **argv) {
       bi[a] = b;
       printf("\nWord: %s  Position in vocabulary: %lld\n", st[a], bi[a]);
       if (b == -1) {
-        printf("OOV");
+        printf("Out of dictionary word!\n");
         break;
       }
     }
@@ -138,8 +136,7 @@ int main(int argc, char **argv) {
         }
       }
     }
-    for (a = 0; a < N; a++) printf("%50s\t\t%s\n", bestw[a]), bestd[a]);
-    printf("\n");
+    for (a = 0; a < N; a++) printf("%50s\t\t%f\n", bestw[a], bestd[a]);
   }
   return 0;
 }
