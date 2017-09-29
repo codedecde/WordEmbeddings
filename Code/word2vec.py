@@ -51,7 +51,7 @@ class Word2Vec(nn.Module):
         pos_score = torch.squeeze(torch.bmm(target_embedding, torch.unsqueeze(input_embedding, 2)), 2)  # batch x Window
         neg_embedding = self.out_embed(neg_tensor)  # batch x neg_samples x n_dim
         neg_score = torch.squeeze(torch.bmm(neg_embedding, torch.unsqueeze(input_embedding, 2)), 2)  # batch x neg_samples
-        loss = torch.sum(torch.sum(f.softplus(pos_score), -1) + torch.sum(f.softplus(neg_score.neg()), -1)) / batch_size
+        loss = torch.sum(torch.sum(f.softplus(pos_score).neg(), -1) + torch.sum(f.softplus(neg_score), -1)) / batch_size
         return loss
 
     def fit(self, data_iterator, n_epochs, steps_per_epoch):
