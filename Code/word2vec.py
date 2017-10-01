@@ -29,11 +29,12 @@ class Word2Vec(nn.Module):
         self.num_classes = num_classes
         self.embed_size = embed_size
 
-        self.out_embed = nn.Embedding(self.num_classes, self.embed_size).type(FloatTensor)
-        self.out_embed.weight = nn.Parameter(torch.FloatTensor(self.num_classes, self.embed_size).uniform_(-1, 1).type(FloatTensor))
+        # self.out_embed = nn.Embedding(self.num_classes, self.embed_size).type(FloatTensor)
+        self.out_embed = nn.Embedding(self.num_classes, self.embed_size).cuda() if use_cuda else nn.Embedding(self.num_classes, self.embed_size)
+        # self.out_embed.weight = nn.Parameter(torch.FloatTensor(self.num_classes, self.embed_size).uniform_(-1, 1).type(FloatTensor))
 
-        self.in_embed = nn.Embedding(self.num_classes, self.embed_size)
-        self.in_embed.weight = nn.Parameter(torch.FloatTensor(self.num_classes, self.embed_size).uniform_(-1, 1).type(FloatTensor))
+        self.in_embed = nn.Embedding(self.num_classes, self.embed_size).cuda() if use_cuda else nn.Embedding(self.num_classes, self.embed_size)
+        # self.in_embed.weight = nn.Parameter(torch.FloatTensor(self.num_classes, self.embed_size).uniform_(-1, 1).type(FloatTensor))
 
         self.l2 = 0.0003
         self.lr = 0.001
@@ -94,7 +95,7 @@ if __name__ == "__main__":
     data_iterator = iterator(data, vocab, window_size=window_size, num_samples=num_samples, batch_size=batch_size)
     w2v = Word2Vec(num_classes=len(vocab), embed_size=300)
     steps_per_epoch = len(data) // batch_size if len(data) % batch_size == 0 else (len(data) // batch_size) + 1
-    w2v.fit(data_iterator, n_epochs=5, steps_per_epoch=steps_per_epoch)
+    w2v.fit(data_iterator, n_epochs=15, steps_per_epoch=steps_per_epoch)
     save_file = data_dir + "Models/word2vec_skipgram_neg_sample_%d_window_%d.pkl" % (num_samples, window_size)
     w2v.save_embeddings(save_file)
 
