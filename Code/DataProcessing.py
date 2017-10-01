@@ -1,7 +1,6 @@
 import torch
 import numpy as np
 import pdb
-import cPickle as cp
 import random
 import io
 from Lang import Vocab
@@ -46,16 +45,23 @@ def iterator(data, vocab, window_size=20, num_samples=5, batch_size=32):
         :yield neg_samples: batch x neg_samples: The indexed negative samples
     """
     def add_2_context(word, context_window, subsampled_unusued, vocab):
-        if subsample(word, vocab):
-            context_window.append(word)
+        if word in vocab.word2ix:
+            # Ignore words not in dictionary
+            if subsample(word, vocab):
+                context_window.append(word)
+            else:
+                subsampled_unusued.append(word)
         else:
-            subsampled_unusued.append(word)
+            print 'Warning: Cleaning not Done'
     stride = 1
     input_tensor = []
     output_tensor = []
     neg_samples = []
     while 1:
         for ix in xrange(0, len(data), stride):
+            if data[ix] not in vocab.word2ix:
+                print 'Warning: Cleaning not Done'
+                continue
             # Generate the context window
             context = []
             subsampled_unusued = []

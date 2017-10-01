@@ -65,16 +65,18 @@ class Vocab(object):
     def __getitem__(self, item):
         if type(item) == str or type(item) == unicode:
             # Encode the string to be unicode
+            assert item in self.word2ix, "Word %s not in vocabulary" % (item)
             item = unicode(item)
             if self.lowercase:
                 item = item.lower()
-            return self.word2ix[item] if item in self.word2ix else len(self.word2ix)
+            return self.word2ix[item]
         else:
-            return self.ix2word[item] if item in self.ix2word else "<UNK>"
+            assert item in self.ix2word, "Index %d not found" % (item)
+            return self.ix2word[item]
 
     def __len__(self):
         assert len(self.ix2word) == len(self.word2ix), "Index not built using generate_vocab and add_word"
-        return len(self.ix2word) + 1  # Also encodes the "<UNK>" symbol as the last symbol
+        return len(self.ix2word)  # We don't encode the <UNK> word
 
     def save_file(self, filename):
         cp.dump(self.__dict__, open(filename, 'wb'))

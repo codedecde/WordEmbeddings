@@ -9,6 +9,7 @@ from Lang import Vocab
 from DataProcessing import iterator
 from utils import Progbar
 import torch.optim as optim
+from IPython.core import debugger
 
 # Some Torch constants
 use_cuda = torch.cuda.is_available()
@@ -17,10 +18,11 @@ LongTensor = torch.cuda.LongTensor if use_cuda else torch.LongTensor
 
 
 class Word2Vec(nn.Module):
-    def __init__(self, num_classes, embed_size):
+    def __init__(self, num_classes, embed_size, num_words):
         """
         :param num_classes: The number of possible classes.
         :param embed_size: EmbeddingLockup size
+        :param num_words: The number of words you look at in an epoch
         """
 
         super(Word2Vec, self).__init__()
@@ -32,9 +34,11 @@ class Word2Vec(nn.Module):
 
         self.in_embed = nn.Embedding(self.num_classes, self.embed_size).cuda() if use_cuda else nn.Embedding(self.num_classes, self.embed_size)
 
-        self.l2 = 0.0003
-        self.lr = 0.001
-        self.optimizer = optim.Adam(self.parameters(), lr=self.lr, betas=(0.9, 0.999), eps=1e-08, weight_decay=self.l2)
+        self.start_lr = 0.025
+        self.optimizer = optim.SGD(self.parameters(), lr=self.start_lr, momentum=0.9)
+
+        self.num_words = num_words
+        self.words_processed = 0.
 
     def forward(self, input_tensor, target_tensor, neg_tensor):
         """
@@ -55,6 +59,10 @@ class Word2Vec(nn.Module):
         loss = torch.sum(pos_score + neg_score) / batch_size
         return loss
 
+    def update_lr(self, lr):
+        for param_group in self.optimizer.param_groups:
+            param_group['lr'] = lr
+
     def fit(self, data_iterator, n_epochs, steps_per_epoch):
         """
             :param data_iterator: The iterator that generates data of form (input_tensor, output_tensor, negative_sampling)
@@ -70,8 +78,10 @@ class Word2Vec(nn.Module):
                 loss = self.forward(Variable(input_tensor), Variable(output_tensor), Variable(neg_tensor))
                 loss.backward()
                 loss_data = loss.data.cpu().numpy()[0] if use_cuda else loss.data.numpy()[0]
-                self.optimizer.step()
-                bar.update(step + 1, [('loss', loss_data)])
+                self.words_processed += input_tensor.size(0)
+                lr = self.start_lr * max(0.0001, 1. - (self.words_processed / (self.num_words * n_epochs + 1)))
+                self.update_lr(lr)
+                bar.update(step + 1, [('loss', loss_data), ('alpha', lr)])
 
     def save_embeddings(self, filename):
         data = self.in_embed.weight.data
@@ -83,13 +93,17 @@ if __name__ == "__main__":
     # Load the data
     filename = "../Data/text8"
     THRESHOLD = -1
-    data = io.open(filename, encoding='utf-8', mode='r', errors='replace').read(THRESHOLD).split(u' ')[1:]
+    raw_data = io.open(filename, encoding='utf-8', mode='r', errors='replace').read(THRESHOLD).split(u' ')[1:]
     vocab_file = "../Models/Vocab_Mincount_10.pkl"
     vocab = Vocab()
     vocab.load_file(vocab_file)
+    data = []
+    for word in raw_data:
+        if word in vocab.word2ix:
+            data.append(word)
     batch_size = 256
     data_iterator = iterator(data, vocab, batch_size=batch_size)
-    w2v = Word2Vec(num_classes=len(vocab), embed_size=300)
+    w2v = Word2Vec(num_classes=len(vocab), embed_size=300, num_words=len(data))
     steps_per_epoch = len(data) // batch_size if len(data) % batch_size == 0 else (len(data) // batch_size) + 1
     w2v.fit(data_iterator, n_epochs=5, steps_per_epoch=steps_per_epoch)
     # w2v.save_embeddings()
