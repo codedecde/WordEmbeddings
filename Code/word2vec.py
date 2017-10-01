@@ -20,9 +20,10 @@ LongTensor = torch.cuda.LongTensor if use_cuda else torch.LongTensor
 class Word2Vec(nn.Module):
     def __init__(self, num_classes, embed_size, num_words):
         """
-        :param num_classes: The number of possible classes.
-        :param embed_size: EmbeddingLockup size
-        :param num_words: The number of words processed per epoch
+        Initializations
+            :param num_classes: The number of possible classes.
+            :param embed_size: EmbeddingLockup size
+            :param num_words: The number of words processed per epoch
         """
 
         super(Word2Vec, self).__init__()
@@ -48,6 +49,7 @@ class Word2Vec(nn.Module):
 
     def forward(self, input_tensor, target_tensor, neg_tensor):
         """
+        The Forward pass
             :param target_tensor: batch x window size (LongTensor): The indices of target context windor
             :param input_tensor: batch x 1 (LongTensor): The indices of the input word
             :param neg_tensor: batch x neg_samples (LongTensor): The indices of the negatively sampled data
@@ -63,6 +65,10 @@ class Word2Vec(nn.Module):
         return loss
 
     def update_lr(self, lr):
+        """
+        Updates the LR for all param_groups
+            :param lr: The updated value of the learning rate
+        """
         for param_group in self.optimizer.param_groups:
             param_group['lr'] = lr
 
@@ -88,11 +94,19 @@ class Word2Vec(nn.Module):
                 bar.update(step + 1, [('loss', loss_data), ('alpha', lr)])
 
     def save_embeddings(self, filename):
+        """
+        Saves the embedding matrix as an numpy array
+            :param filename: The filename to store the matrix
+        """
         data = self.in_embed.weight.data
         data = data.cpu().numpy() if use_cuda else data.numpy()
         np.save(open(filename, 'wb'), data)
 
     def save_model(self, filename):
+        """
+        Saves the entire model, which can be used to resume a run
+            :param filename: The filename to save the model
+        """
         model_data = {'model_weights': self.state_dict(), 'words_processed': self.words_processed,
                       'l2': self.l2, 'lr': self.lr, 'num_words': self.num_words}
         model_data = OrderedDict([('num_classes', self.num_classes),
@@ -105,6 +119,10 @@ class Word2Vec(nn.Module):
         torch.save(model_data, filename)
 
     def load_model(self, filename):
+        """
+        Load the model from a file
+            :param filename: The file to load the model from
+        """
         model_data = torch.load(filename)
         for key in model_data:
             if key == 'model_weights':
