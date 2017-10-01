@@ -4,12 +4,12 @@ from torch.autograd import Variable
 import torch.nn.functional as f
 import numpy as np
 import pdb
-import cPickle as cp
 import io
 from Lang import Vocab
 from DataProcessing import iterator
 from utils import Progbar
 import torch.optim as optim
+from IPython.core import debugger
 
 # Some Torch constants
 use_cuda = torch.cuda.is_available()
@@ -18,10 +18,11 @@ LongTensor = torch.cuda.LongTensor if use_cuda else torch.LongTensor
 
 
 class Word2Vec(nn.Module):
-    def __init__(self, num_classes, embed_size):
+    def __init__(self, num_classes, embed_size, num_words):
         """
         :param num_classes: The number of possible classes.
         :param embed_size: EmbeddingLockup size
+        :param num_words: The number of words you look at in an epoch
         """
 
         super(Word2Vec, self).__init__()
@@ -29,16 +30,15 @@ class Word2Vec(nn.Module):
         self.num_classes = num_classes
         self.embed_size = embed_size
 
-        # self.out_embed = nn.Embedding(self.num_classes, self.embed_size).type(FloatTensor)
         self.out_embed = nn.Embedding(self.num_classes, self.embed_size).cuda() if use_cuda else nn.Embedding(self.num_classes, self.embed_size)
-        # self.out_embed.weight = nn.Parameter(torch.FloatTensor(self.num_classes, self.embed_size).uniform_(-1, 1).type(FloatTensor))
 
         self.in_embed = nn.Embedding(self.num_classes, self.embed_size).cuda() if use_cuda else nn.Embedding(self.num_classes, self.embed_size)
-        # self.in_embed.weight = nn.Parameter(torch.FloatTensor(self.num_classes, self.embed_size).uniform_(-1, 1).type(FloatTensor))
 
-        self.l2 = 0.0003
-        self.lr = 0.001
-        self.optimizer = optim.Adam(self.parameters(), lr=self.lr, betas=(0.9, 0.999), eps=1e-08, weight_decay=self.l2)
+        self.start_lr = 0.025
+        self.optimizer = optim.SGD(self.parameters(), lr=self.start_lr, momentum=0.9)
+
+        self.num_words = num_words
+        self.words_processed = 0.
 
     def forward(self, input_tensor, target_tensor, neg_tensor):
         """
@@ -48,13 +48,22 @@ class Word2Vec(nn.Module):
             :return loss (FloatTensor): The mean Negative Sampled Loss over batch
         """
         [batch_size, window_size] = target_tensor.size()
+        [batch_size, neg_samples] = neg_tensor.size()
         input_embedding = self.in_embed(input_tensor)  # batch x n_dim
         target_embedding = self.out_embed(target_tensor)  # batch x Window x n_dim
         pos_score = torch.squeeze(torch.bmm(target_embedding, torch.unsqueeze(input_embedding, 2)), 2)  # batch x Window
+        # pos_score = torch.sum(f.softplus(pos_score.neg()), -1) / window_size  # batch x 1
+        pos_score = torch.sum(f.softplus(pos_score.neg()), -1)
         neg_embedding = self.out_embed(neg_tensor)  # batch x neg_samples x n_dim
         neg_score = torch.squeeze(torch.bmm(neg_embedding, torch.unsqueeze(input_embedding, 2)), 2)  # batch x neg_samples
-        loss = torch.sum(torch.sum(f.softplus(pos_score.neg()), -1) + torch.sum(f.softplus(neg_score), -1)) / batch_size
+        # neg_score = torch.sum(f.softplus(neg_score), -1) / neg_samples  # batch x 1
+        neg_score = torch.sum(f.softplus(neg_score), -1)
+        loss = torch.sum(pos_score + neg_score) / batch_size
         return loss
+
+    def update_lr(self, lr):
+        for param_group in self.optimizer.param_groups:
+            param_group['lr'] = lr
 
     def fit(self, data_iterator, n_epochs, steps_per_epoch):
         """
@@ -71,35 +80,34 @@ class Word2Vec(nn.Module):
                 loss = self.forward(Variable(input_tensor), Variable(output_tensor), Variable(neg_tensor))
                 loss.backward()
                 loss_data = loss.data.cpu().numpy()[0] if use_cuda else loss.data.numpy()[0]
-                self.optimizer.step()
-                bar.update(step + 1, [('loss', loss_data)])
+                self.words_processed += input_tensor.size(0)
+                lr = self.start_lr * max(0.0001, 1. - (self.words_processed / (self.num_words * n_epochs + 1)))
+                self.update_lr(lr)
+                bar.update(step + 1, [('loss', loss_data), ('alpha', lr)])
 
     def save_embeddings(self, filename):
         data = self.in_embed.weight.data
         data = data.cpu().numpy() if use_cuda else data.numpy()
-        cp.dump(data, open(filename, 'wb'))
+        np.save(open(filename, 'wb'), data)
 
 
 if __name__ == "__main__":
     # Load the data
-    data_dir = "/home/bass/DataDir/Embeddings/"
-    filename = data_dir + "Data/text8"
+    filename = "../Data/text8"
     THRESHOLD = -1
-    data = io.open(filename, encoding='utf-8', mode='r', errors='replace').read(THRESHOLD).split(u' ')[1:]
-    vocab_file = data_dir + "Data/Vocab_Mincount_10.pkl"
+    raw_data = io.open(filename, encoding='utf-8', mode='r', errors='replace').read(THRESHOLD).split(u' ')[1:]
+    vocab_file = "../Models/Vocab_Mincount_10.pkl"
     vocab = Vocab()
     vocab.load_file(vocab_file)
+    data = []
+    for word in raw_data:
+        if word in vocab.word2ix:
+            data.append(word)
     batch_size = 256
-    window_size = 8
-    num_samples = 25
-    data_iterator = iterator(data, vocab, window_size=window_size, num_samples=num_samples, batch_size=batch_size)
-    w2v = Word2Vec(num_classes=len(vocab), embed_size=300)
+    data_iterator = iterator(data, vocab, batch_size=batch_size)
+    w2v = Word2Vec(num_classes=len(vocab), embed_size=300, num_words=len(data))
     steps_per_epoch = len(data) // batch_size if len(data) % batch_size == 0 else (len(data) // batch_size) + 1
-    w2v.fit(data_iterator, n_epochs=15, steps_per_epoch=steps_per_epoch)
-    save_file = data_dir + "Models/word2vec_skipgram_neg_sample_%d_window_%d.pkl" % (num_samples, window_size)
-    w2v.save_embeddings(save_file)
-
-    # w2v = Word2Vec(20, 10)
-    # input_labels = Variable(t.LongTensor(np.array([0, 1, 2, 1], dtype=int)))
-    # output_labels = Variable(t.LongTensor(np.array([[1, 2], [2, 3], [3, 2], [4, 1]], dtype=int)))
-    # w2v(input_labels, output_labels, 10)
+    w2v.fit(data_iterator, n_epochs=5, steps_per_epoch=steps_per_epoch)
+    # w2v.save_embeddings()
+    model_save_file = "../Models/python_model.pkl"
+    w2v.save_embeddings(model_save_file)

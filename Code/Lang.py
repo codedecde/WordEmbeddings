@@ -17,7 +17,7 @@ class Vocab(object):
     def __init__(self, lowercase=True, tokenizer=None, min_count=10):
         self.tokenizer = tokenizer
         self.lowercase = lowercase  # To lowercase all words encountered
-        self.weights = []  # The Weights for negative sampling
+        self.unigram_table = []  # The unigram table for negative sampling
         self.subsample_weights = {}  # The weights for subsampling
         self.word2ix = {}  # The words to their index mapping
         self.ix2word = {}  # The index to the word
@@ -31,37 +31,52 @@ class Vocab(object):
 
     def generate_vocab(self, data):
         # Generate the counts
-        word_count = float(len(data))
         word_counter = Counter()
         for word in data:
             if self.lowercase:
                 word = word.lower()
             word_counter[word] += 1
         freq_table = word_counter.most_common(None if VOCAB_SIZE < 0 else VOCAB_SIZE)  # List [("word", frequency)]
+        total_words = 0.
         for ix, (word, freq) in enumerate(freq_table):
             if freq < self.min_count:
                 break
             self.word2ix[word] = ix
             self.ix2word[ix] = word
-            self.weights.append(freq ** (0.75))  # Taken from the Word2Vec paper
-            z_w = freq / word_count
+            total_words += freq
+        neg_weights = np.zeros((len(self.word2ix), 1))
+        for word in self.word2ix:
+            z_w = word_counter[word] / total_words
             p_w = min(1., (0.001 / z_w) * (np.sqrt(z_w / 0.001) + 1))  # Also taken from Word2Vec paper
             self.subsample_weights[word] = p_w
-        self.weights = torch.Tensor(self.weights).type(FloatTensor)
+            neg_weights[self.word2ix[word]] = (word_counter[word] ** (0.75))
+        table_size = min(1000000, int(neg_weights.sum()))
+        neg_weights = neg_weights / neg_weights.sum()
+        neg_weights *= table_size
+        self.unigram_table = []
+        for ix in xrange(len(neg_weights)):
+            for jx in xrange(int(neg_weights[ix])):
+                self.unigram_table.append(ix)
+                if len(self.unigram_table) == table_size:
+                    break
+            if len(self.unigram_table) == table_size:
+                break
 
     def __getitem__(self, item):
         if type(item) == str or type(item) == unicode:
             # Encode the string to be unicode
+            assert item in self.word2ix, "Word %s not in vocabulary" % (item)
             item = unicode(item)
             if self.lowercase:
                 item = item.lower()
-            return self.word2ix[item] if item in self.word2ix else len(self.word2ix)
+            return self.word2ix[item]
         else:
-            return self.ix2word[item] if item in self.ix2word else "<UNK>"
+            assert item in self.ix2word, "Index %d not found" % (item)
+            return self.ix2word[item]
 
     def __len__(self):
         assert len(self.ix2word) == len(self.word2ix), "Index not built using generate_vocab and add_word"
-        return len(self.ix2word) + 1  # Also encodes the "<UNK>" symbol as the last symbol
+        return len(self.ix2word)  # We don't encode the <UNK> word
 
     def save_file(self, filename):
         cp.dump(self.__dict__, open(filename, 'wb'))
