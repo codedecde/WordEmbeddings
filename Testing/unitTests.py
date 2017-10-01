@@ -49,8 +49,12 @@ class Word2vecEmbeddings(TestClass):
 if __name__ == "__main__":
     cfv_file = "../Baselines/Counter-fitted-vectors/counter-fitted-vectors.txt"
     glove_file = "../Baselines/Glove/glove.840B.300d.txt"
-    print "Word2vec Embeddings" 
+    print "Word2vec Embeddings"
     word2vec_tester = Word2vecEmbeddings("Word2vec", "../Models/Word2Vec/vectors_skipgram_300.bin")
+    word2vec_tester.load_data()
+    word2vec_tester.compute_stats()
+    print "Word2vec Pytorch"
+    word2vec_tester = EmbeddingFileTester("Word2vec_pytorch", "../Models/word2vec_skipgram_neg_sample_25_window_8.txt")
     word2vec_tester.load_data()
     word2vec_tester.compute_stats()
     print "Counter Fitted Vectors ..."

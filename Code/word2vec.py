@@ -4,7 +4,6 @@ from torch.autograd import Variable
 import torch.nn.functional as f
 import numpy as np
 import pdb
-import cPickle as cp
 import io
 from Lang import Vocab
 from DataProcessing import iterator
@@ -29,11 +28,9 @@ class Word2Vec(nn.Module):
         self.num_classes = num_classes
         self.embed_size = embed_size
 
-        self.out_embed = nn.Embedding(self.num_classes, self.embed_size).type(FloatTensor)
-        self.out_embed.weight = nn.Parameter(torch.FloatTensor(self.num_classes, self.embed_size).uniform_(-1, 1).type(FloatTensor))
+        self.out_embed = nn.Embedding(self.num_classes, self.embed_size).cuda() if use_cuda else nn.Embedding(self.num_classes, self.embed_size)
 
-        self.in_embed = nn.Embedding(self.num_classes, self.embed_size)
-        self.in_embed.weight = nn.Parameter(torch.FloatTensor(self.num_classes, self.embed_size).uniform_(-1, 1).type(FloatTensor))
+        self.in_embed = nn.Embedding(self.num_classes, self.embed_size).cuda() if use_cuda else nn.Embedding(self.num_classes, self.embed_size)
 
         self.l2 = 0.0003
         self.lr = 0.001
@@ -76,7 +73,7 @@ class Word2Vec(nn.Module):
     def save_embeddings(self, filename):
         data = self.in_embed.weight.data
         data = data.cpu().numpy() if use_cuda else data.numpy()
-        cp.dump(data, open(filename, 'wb'))
+        np.save(open(filename, 'wb'), data)
 
 
 if __name__ == "__main__":
@@ -92,4 +89,6 @@ if __name__ == "__main__":
     w2v = Word2Vec(num_classes=len(vocab), embed_size=300)
     steps_per_epoch = len(data) // batch_size if len(data) % batch_size == 0 else (len(data) // batch_size) + 1
     w2v.fit(data_iterator, n_epochs=1, steps_per_epoch=1)
-    w2v.save_embeddings("../Models/python_model.pkl")
+    # w2v.save_embeddings()
+    model_save_file = "../Models/python_model.pkl"
+    w2v.save_embeddings(model_save_file)
