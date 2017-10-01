@@ -9,7 +9,6 @@ from Lang import Vocab
 from DataProcessing import iterator
 from utils import Progbar
 import torch.optim as optim
-from IPython.core import debugger
 
 # Some Torch constants
 use_cuda = torch.cuda.is_available()

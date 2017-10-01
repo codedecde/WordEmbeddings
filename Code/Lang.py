@@ -1,15 +1,11 @@
 from __future__ import unicode_literals, print_function, division
-import torch
 from collections import Counter
-from nltk.tokenize import TweetTokenizer
 import cPickle as cp
 import numpy as np
 import io
-import sys
 import pdb
 
-use_cuda = torch.cuda.is_available()
-FloatTensor = torch.cuda.FloatTensor if use_cuda else torch.FloatTensor
+
 VOCAB_SIZE = -1
 
 
@@ -86,10 +82,11 @@ class Vocab(object):
 
 
 if __name__ == "__main__":
-    filename = "../Data/text8"
+    data_dir = "/home/bass/DataDir/Embeddings/"
+    data_file = data_dir + "Data/text8"
     THRESHOLD = -1
-    data = io.open(filename, encoding='utf-8', mode='r', errors='replace').read(THRESHOLD).split(u' ')[1:]
+    data = io.open(data_file, encoding='utf-8', mode='r', errors='replace').read(THRESHOLD).split(u' ')[1:]
     vocab = Vocab()
     vocab.generate_vocab(data)
-    save_filename = "../Models/Vocab_Mincount_10.pkl"
+    save_filename = data_dir + "Data/Vocab_Mincount_10_with_unigram_table.pkl"
     vocab.save_file(save_filename)

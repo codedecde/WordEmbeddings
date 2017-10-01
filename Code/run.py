@@ -32,11 +32,11 @@ def get_arguments():
 
 if __name__ == "__main__":
     args = get_arguments()
-    data_dir = "../"
+    data_dir = "/home/bass/DataDir/Embeddings/"
     data_file = data_dir + "Data/text8"
     THRESHOLD = -1
     raw_data = io.open(data_file, encoding='utf-8', mode='r', errors='replace').read(THRESHOLD).split(u' ')[1:]
-    vocab_file = data_dir + "Models/Vocab_Mincount_10.pkl"
+    vocab_file = data_dir + "Data/Vocab_Mincount_10_with_unigram_table.pkl"
     vocab = Vocab()
     vocab.load_file(vocab_file)
     data = []
@@ -49,5 +49,5 @@ if __name__ == "__main__":
     steps_per_epoch = len(data) // batch_size if len(data) % batch_size == 0 else (len(data) // batch_size) + 1
     w2v.fit(data_iterator, n_epochs=5, steps_per_epoch=steps_per_epoch)
     # w2v.save_embeddings()
-    model_save_file = data_dir + "Models/python_model.pkl"
+    model_save_file = data_dir + "Models/word2vec_window_{}_negsamples_{}.npy".format(args.window, args.neg_samples)
     w2v.save_embeddings(model_save_file)
