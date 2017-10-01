@@ -30,7 +30,7 @@ def negative_sample(vocab, batch_size, num_samples):
         :param num_samples: Number of samples
         :return: batch_size x num_samples: Negative samples sampled from a multinomial
     """
-    return torch.multinomial(vocab.weights, batch_size * num_samples, True).view(batch_size, num_samples).type(LongTensor)
+    return torch.Tensor(np.random.choice(vocab.unigram_table, (batch_size, num_samples))).type(LongTensor)
 
 
 def iterator(data, vocab, window_size=20, num_samples=5, batch_size=32):

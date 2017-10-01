@@ -44,12 +44,15 @@ class Word2Vec(nn.Module):
             :return loss (FloatTensor): The mean Negative Sampled Loss over batch
         """
         [batch_size, window_size] = target_tensor.size()
+        [batch_size, neg_samples] = neg_tensor.size()
         input_embedding = self.in_embed(input_tensor)  # batch x n_dim
         target_embedding = self.out_embed(target_tensor)  # batch x Window x n_dim
         pos_score = torch.squeeze(torch.bmm(target_embedding, torch.unsqueeze(input_embedding, 2)), 2)  # batch x Window
+        pos_score = torch.sum(f.softplus(pos_score.neg()), -1) / window_size  # batch x 1
         neg_embedding = self.out_embed(neg_tensor)  # batch x neg_samples x n_dim
         neg_score = torch.squeeze(torch.bmm(neg_embedding, torch.unsqueeze(input_embedding, 2)), 2)  # batch x neg_samples
-        loss = torch.sum(torch.sum(f.softplus(pos_score.neg()), -1) + torch.sum(f.softplus(neg_score), -1)) / batch_size
+        neg_score = torch.sum(f.softplus(neg_score), -1) / neg_samples  # batch x 1
+        loss = torch.sum(pos_score + neg_score) / batch_size
         return loss
 
     def fit(self, data_iterator, n_epochs, steps_per_epoch):
@@ -88,7 +91,7 @@ if __name__ == "__main__":
     data_iterator = iterator(data, vocab, batch_size=batch_size)
     w2v = Word2Vec(num_classes=len(vocab), embed_size=300)
     steps_per_epoch = len(data) // batch_size if len(data) % batch_size == 0 else (len(data) // batch_size) + 1
-    w2v.fit(data_iterator, n_epochs=1, steps_per_epoch=1)
+    w2v.fit(data_iterator, n_epochs=5, steps_per_epoch=steps_per_epoch)
     # w2v.save_embeddings()
     model_save_file = "../Models/python_model.pkl"
     w2v.save_embeddings(model_save_file)
