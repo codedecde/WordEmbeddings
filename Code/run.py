@@ -47,7 +47,10 @@ if __name__ == "__main__":
     data_iterator = iterator(data, vocab, num_samples=args.neg_samples, batch_size=batch_size, window_size=args.window)
     w2v = Word2Vec(num_classes=len(vocab), embed_size=300, num_words=len(data))
     steps_per_epoch = len(data) // batch_size if len(data) % batch_size == 0 else (len(data) // batch_size) + 1
-    w2v.fit(data_iterator, n_epochs=5, steps_per_epoch=steps_per_epoch)
-    # w2v.save_embeddings()
-    model_save_file = data_dir + "Models/python_model.pkl"
+    w2v.fit(data_iterator, n_epochs=args.n_epochs, steps_per_epoch=steps_per_epoch)
+    # Save the word embeddings
+    model_save_file = data_dir + "Models/python_model.npy"
     w2v.save_embeddings(model_save_file)
+    # Save the model (so that can be used for training again)
+    model_save_file = data_dir + "Models/python_model_file.pth"
+    w2v.save_model(model_save_file)
