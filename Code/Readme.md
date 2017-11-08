@@ -1,11 +1,12 @@
 ## FOLDER STRUCTURE
 ```
-Data
-|   text8 / tiny_text8
-|____Linguistic_Constraints
-|    |  ppdb_synonyms.txt
-|    |  ppdb_antonyms.txt
-|    |  wordnes_antonymx.txt
+.
++-- _Data
+|   +-- text8 / tiny_text8
+|   +-- _Linguistic_Constraints
+|       +-- ppdb_synonyms.txt
+|       +-- ppdb_antonyms.txt
+|       +-- wordnes_antonymx.txt
 ```
 
 
