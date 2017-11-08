@@ -1,24 +1,12 @@
 ## FOLDER STRUCTURE
-
+```
 Data
 |----text8 or tiny_text8
-|----Linguistic_Constraints
+|----Linguistic_Constraints/
 |    |-----ppdb_synonyms.txt
 |    |-----ppdb_antonyms.txt
 |    |-----wordnes_antonymx.txt
-
-
-
-.
-├── book.json
-├── README.md
-├── SUMMARY.md
-├── chapter-1/
-|   ├── README.md
-|   └── something.md
-└── chapter-2/
-    ├── README.md
-    └── something.md
+```
 
 ## Running the code
 * Execute preprocess.py. Generates the following in the **Data/** directory
