@@ -1,10 +1,12 @@
-## PREREQUISITES
-* text8 (or tiny_text8), stored in the **Data/** directory
-* A folder **Data/Linguistic_Constraints/** containing
-    * ppdb_synonyms.txt
-    * ppdb_antonyms.txt
-    * wordnet_antonyms.txt
-* pytorch (latest version)
+## FOLDER STRUCTURE
+```
+Data
+|   text8 / tiny_text8
+|____Linguistic_Constraints
+|    |  ppdb_synonyms.txt
+|    |  ppdb_antonyms.txt
+|    |  wordnes_antonymx.txt
+```
 
 
 ## Running the code
