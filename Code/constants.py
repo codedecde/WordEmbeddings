@@ -10,6 +10,6 @@ PPDB_ANT_FILE = CONSTRAINTS_DIR + "ppdb_antonyms.txt"
 WORDNET_ANT_FILE = CONSTRAINTS_DIR + "wordnet_antonyms.txt"
 TINY_TEXT = BASE_DIR + "tiny_text8"
 TEXT = BASE_DIR + "text8"
-
+PAD_TOK = "PAD_TOK"
 # General Flags
 DEBUG = True

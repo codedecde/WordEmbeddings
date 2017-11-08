@@ -11,7 +11,7 @@ data = filter(lambda x: len(x) != 1, open(TEXT).read().split(' '))
 for word in data:
     word_freq[word] += 1
 freq_list = word_freq.most_common()
-word2ix = {"PAD_TOK": 0}
+word2ix = {PAD_TOK: 0}
 min_freq = 5
 for w, c in freq_list:
     if c < min_freq:
