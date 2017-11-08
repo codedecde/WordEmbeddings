@@ -1,14 +1,12 @@
 ## FOLDER STRUCTURE
 ```
-.
-+-- _Data
-|   +-- text8 / tiny_text8
-|   +-- _Linguistic_Constraints
-|       +-- ppdb_synonyms.txt
-|       +-- ppdb_antonyms.txt
-|       +-- wordnes_antonymx.txt
+Data
+|----text8 or tiny_text8
+|----Linguistic_Constraints/
+|    |-----ppdb_synonyms.txt
+|    |-----ppdb_antonyms.txt
+|    |-----wordnes_antonymx.txt
 ```
-
 
 ## Running the code
 * Execute preprocess.py. Generates the following in the **Data/** directory
