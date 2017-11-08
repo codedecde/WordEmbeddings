@@ -54,9 +54,17 @@ if __name__ == "__main__":
     word2vec_tester.load_data()
     word2vec_tester.compute_stats()
     print "Word2vec Pytorch"
-    word2vec_tester = EmbeddingFileTester("Word2vec_pytorch", "../Models/word2vec_skipgram_neg_sample_25_window_8.txt")
+    word2vec_tester = EmbeddingFileTester("Word2vec_pytorch", "../Models/Embeddings_file.txt")
     word2vec_tester.load_data()
     word2vec_tester.compute_stats()
+    print "Word2vec Pytorch with syn constraints"
+    word2vec_tester = EmbeddingFileTester("Word2vec_pytorch_with_syn", "../Models/embeddings_with_syn_info_epoch_5_no_lr_decay.txt")
+    word2vec_tester.load_data()
+    word2vec_tester.compute_stats()
+    print "Fast Text"
+    fastext_tester = EmbeddingFileTester("Fast_Text", "../Models/vectors_fastext.txt")
+    fastext_tester.load_data()
+    fastext_tester.compute_stats()
     print "Counter Fitted Vectors ..."
     glove_tester = EmbeddingFileTester(name="Counter Fitted Vectors", filepath=cfv_file)
     print 'LOADING DATA ...'
@@ -65,6 +73,7 @@ if __name__ == "__main__":
     glove_tester.compute_stats()
     print 'Glove Embedding Vectors ...'
     glove_tester = EmbeddingFileTester(name="Glove Embedding Vectors", filepath=glove_file)
+    #glove_tester = EmbeddingFileTester(name="Glove Embedding Vectors", filepath="../Models/glove.txt")
     print 'LOADING DATA ...'
     glove_tester.load_data()
     print 'DATA LOADED ....'
