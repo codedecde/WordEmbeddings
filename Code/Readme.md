@@ -1,6 +1,6 @@
 ## PREREQUISITES
-* text8 (or tiny_text8), stored in the Data/ directory
-* A folder Data/Linguistic_Constraints/ containing
+* text8 (or tiny_text8), stored in the **Data/** directory
+* A folder **Data/Linguistic_Constraints/** containing
     * ppdb_synonyms.txt
     * ppdb_antonyms.txt
     * wordnet_antonyms.txt
@@ -8,7 +8,7 @@
 
 
 ## Running the code
-* Execute preprocess.py. Generates the following in the Data directory
+* Execute preprocess.py. Generates the following in the **Data/** directory
     * word2ix.dat: The dictionary mapping words -> integer indexes
     * unigram_table.npy: The unigram table, stored as a numpy array
 * python run.py
