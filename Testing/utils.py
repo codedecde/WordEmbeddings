@@ -2,7 +2,6 @@ import numpy as np
 import time
 import sys
 import os
-import torch
 '''
     Utility functions
     Taken from keras code : https://keras.io/
@@ -201,8 +200,32 @@ class Progbar(object):
         self.update(self.seen_so_far + n, values)
 
 
-def getdata(tensor):
-    if torch.cuda.is_available():
-        return tensor.cpu().data
-    else:
-        return tensor.data
+def get_best_model_file(file_prefix, mode = "max", model_suffix = '.weights'):
+    '''
+        Finds the best model from a directory
+    ''' 
+    mode = mode.lower()
+    file_prefix = file_prefix.split('/')
+    assert mode in set(["min", "max"])
+    directory = '/'.join(file_prefix[:-1])
+    model_prefix = file_prefix[-1]
+    assert os.path.isdir(directory)
+    best_model_metric = None
+    best_model_file = None
+    comparison_function = min if mode == "min" else max
+
+    for file in os.listdir(directory):      
+        if file.startswith(model_prefix) and file.endswith(model_suffix):           
+            # metric = float('.'.join(file.split('_')[-1].split('.')[:-1]))
+            metric = float(file.rstrip(model_suffix).split('_')[-1])
+            if best_model_metric is None:
+                best_model_metric = metric
+                best_model_file = file
+            elif metric == comparison_function(best_model_metric, metric):
+                best_model_metric = metric
+                best_model_file = file
+    assert best_model_file is not None
+    print 'LOADING WEIGHTS FROM : %s '%(best_model_file)    
+    sys.stdout.flush()
+    return directory + '/' + best_model_file
+

@@ -3,6 +3,8 @@ Constants used
 '''
 BASE_DIR = "../Data/"
 VOCAB_FILE = BASE_DIR + "word2ix.dat"
+NGRAM_DICT = BASE_DIR + "ngram_dict.pkl"
+BPE_DICT = BASE_DIR + "BPE/bpe_vocab.txt"
 UNIGRAM_TABLE_FILE = BASE_DIR + "unigram_table.npy"
 CONSTRAINTS_DIR = BASE_DIR + "Linguistic_Constraints/"
 PPDB_SYN_FILE = CONSTRAINTS_DIR + "ppdb_synonyms.txt"
@@ -11,5 +13,6 @@ WORDNET_ANT_FILE = CONSTRAINTS_DIR + "wordnet_antonyms.txt"
 TINY_TEXT = BASE_DIR + "tiny_text8"
 TEXT = BASE_DIR + "text8"
 PAD_TOK = "PAD_TOK"
+MIN_FREQ = 5
 # General Flags
 DEBUG = True

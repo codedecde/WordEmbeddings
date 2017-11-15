@@ -2,15 +2,16 @@ import torch.utils.data as ut
 import torch
 import cPickle as cp
 import numpy as np
-from utils import Progbar
+from utils import Progbar, getdata
 from model import Word2vec
+from torch.autograd import Variable
 import torch.optim as optim
 from constants import *
 
 
 if DEBUG:
     TEXT = TINY_TEXT
-use_gpu = torch.cuda.is_available()
+use_cuda = torch.cuda.is_available()
 data = filter(lambda x: len(x) > 1, open(TEXT).read().split(' '))
 word2ix = cp.load(open(VOCAB_FILE))
 unigram_table = np.load(UNIGRAM_TABLE_FILE)
@@ -86,22 +87,33 @@ class DataIterator(ut.Dataset):
     def __getitem__(self, idx):
         w_ix, p_ix = self.indexed_data[idx]
         n_ix = np.random.choice(self.unigram_table, replace=True, size=self.neg_samples)
-
-        syn_ix = np.random.choice(self.syn_set[w_ix], replace=True, size=self.n_syn) if w_ix in self.syn_set else [0 for _ in xrange(self.n_syn)]  # 0 is a padding token
-        ant_ix = np.random.choice(self.ant_set[w_ix], replace=True, size=self.n_ant) if w_ix in self.ant_set else [0 for _ in xrange(self.n_ant)]
+        if w_ix in self.syn_set:
+            syn_ix = np.random.choice(self.syn_set[w_ix], replace=True, size=self.n_syn) 
+            ms_ix = 1
+        else:
+            syn_ix = [0 for _ in xrange(self.n_syn)]  # 0 is a padding token
+            ms_ix = 0
+        if w_ix in self.ant_set:
+            ant_ix = np.random.choice(self.ant_set[w_ix], replace=True, size=self.n_ant)
+            ma_ix = 1
+        else:    
+            ant_ix = [0 for _ in xrange(self.n_ant)]
+            ma_ix = 0
         # Handle synonyms
         w_ix = torch.LongTensor([w_ix])
         n_ix = torch.LongTensor(n_ix)
         p_ix = torch.LongTensor(p_ix)
         syn_ix = torch.LongTensor(syn_ix)
+        ms_ix = torch.FloatTensor([ms_ix])
         ant_ix = torch.LongTensor(ant_ix)
-        return w_ix, p_ix, n_ix, syn_ix, ant_ix
+        ma_ix = torch.FloatTensor([ma_ix])
+        return w_ix, p_ix, n_ix, syn_ix, ms_ix, ant_ix, ma_ix
 
 
 window = 4
 neg_samples = 25
-n_syn = window
-n_ant = neg_samples // 2
+n_syn = 4
+n_ant = 4
 indexed_data = generate_data(data, word2ix, window)
 iterator = DataIterator(unigram_table, indexed_data, neg_samples, syn_set, ant_set, n_syn, n_ant)
 BATCH_SIZE = 128
@@ -121,7 +133,10 @@ for epoch in xrange(N_EPOCHS):
     bar = Progbar(n_batches)
     print "\nEpoch (%d/ %d)\n" % (epoch + 1, N_EPOCHS)
     for ix, batch in enumerate(dataloader):
-        loss = w2v(batch[0], batch[1], batch[2], batch[3], batch[4])
+        batch = map(lambda x: Variable(x), batch)
+        if use_cuda:
+            batch = map(lambda x: x.cuda(), batch)
+        loss, p_score, n_score, s_score, a_score = w2v(*batch)
         loss.backward()
         optimizer.step()
         optimizer.zero_grad()
@@ -130,12 +145,10 @@ for epoch in xrange(N_EPOCHS):
         new_lr = lr * max(1e-4, 1. - (words_processed / (len(iterator) * N_EPOCHS)))
         for param_groups in optimizer.param_groups:
             param_groups['lr'] = new_lr
-        loss_data = loss.cpu() if use_gpu else loss
-        loss_data = loss_data.data.numpy()[0]
-        bar.update(ix + 1, values=[('loss', loss_data), ('lr', new_lr)])
-        bar.update(ix + 1, values=[('loss', loss_data)])
+        loss, p_score, n_score, s_score, a_score = map(lambda x: getdata(x).numpy()[0], [loss, p_score, n_score, s_score, a_score])
+        bar.update(ix + 1, values=[('l', loss), ('p', p_score), ('n', n_score), ('s', s_score), ('a', a_score), ('lr', new_lr)])
 weights = w2v.embedding_i.weight
-weights = weights.cpu() if use_gpu else weights
+weights = weights.cpu() if use_cuda else weights
 weights = weights.data.numpy()
 save_file = BASE_DIR + "vocab_matrix_with_syn_ant.npy"
 np.save(save_file, weights)
