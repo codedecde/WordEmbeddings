@@ -196,7 +196,7 @@ dataloader = ut.DataLoader(iterator, batch_size=BATCH_SIZE,
 N_EPOCHS = 5
 lr = 0.025
 bar = Progbar(N_EPOCHS)
-sw2v = subWord2vec(len(subword2ix), 300, sparse=True)
+sw2v = subWord2vec(len(subword2ix), 300, sparse=False)
 if use_cuda:
     sw2v = sw2v.cuda()
 optimizer = optim.Adagrad(sw2v.parameters(), lr=lr)

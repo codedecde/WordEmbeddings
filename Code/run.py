@@ -88,7 +88,7 @@ class DataIterator(ut.Dataset):
         w_ix, p_ix = self.indexed_data[idx]
         n_ix = np.random.choice(self.unigram_table, replace=True, size=self.neg_samples)
         if w_ix in self.syn_set:
-            syn_ix = np.random.choice(self.syn_set[w_ix], replace=True, size=self.n_syn) 
+            syn_ix = np.random.choice(self.syn_set[w_ix], replace=True, size=self.n_syn)
             ms_ix = 1
         else:
             syn_ix = [0 for _ in xrange(self.n_syn)]  # 0 is a padding token
@@ -96,7 +96,7 @@ class DataIterator(ut.Dataset):
         if w_ix in self.ant_set:
             ant_ix = np.random.choice(self.ant_set[w_ix], replace=True, size=self.n_ant)
             ma_ix = 1
-        else:    
+        else:
             ant_ix = [0 for _ in xrange(self.n_ant)]
             ma_ix = 0
         # Handle synonyms
@@ -124,7 +124,7 @@ N_EPOCHS = 5
 # lr = 0.001
 lr = 0.025
 bar = Progbar(N_EPOCHS)
-w2v = Word2vec(len(word2ix), 300, sparse=True)
+w2v = Word2vec(len(word2ix), 300, sparse=False)
 
 optimizer = optim.Adagrad(w2v.parameters(), lr=lr)
 words_processed = 0.
