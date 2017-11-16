@@ -9,8 +9,6 @@ import torch.optim as optim
 from constants import *
 
 
-if DEBUG:
-    TEXT = TINY_TEXT
 use_cuda = torch.cuda.is_available()
 data = filter(lambda x: len(x) > 1, open(TEXT).read().split(' '))
 word2ix = cp.load(open(VOCAB_FILE))
@@ -150,5 +148,5 @@ for epoch in xrange(N_EPOCHS):
 weights = w2v.embedding_i.weight
 weights = weights.cpu() if use_cuda else weights
 weights = weights.data.numpy()
-save_file = BASE_DIR + "vocab_matrix_with_syn_ant.npy"
+save_file = BASE_DIR + "Models/vocab_matrix_with_syn_ant.npy"
 np.save(save_file, weights)

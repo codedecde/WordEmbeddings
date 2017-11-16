@@ -13,15 +13,13 @@ import numpy as np
 
 
 # =========== CONSTANTS ==========================#
-if DEBUG:
-    TEXT = TINY_TEXT
 use_cuda = torch.cuda.is_available()
 data = filter(lambda x: len(x) > 1, open(TEXT).read().split(' '))
 unigram_table = np.load(UNIGRAM_TABLE_FILE)
 SUB_WORD_FREQ = 2
-SUB_WORD_FILE = BASE_DIR + "BPE/vocab_subwords.txt"
+SUB_WORD_FILE = DATA_DIR + "BPE/vocab_subwords.txt"
 SUB_WORD_SUFFIX = "@@"
-CODECS_FILE = BASE_DIR + "BPE/bpe_codecs.txt"
+CODECS_FILE = DATA_DIR + "BPE/bpe_codecs.txt"
 MAX_SPLIT = 6
 # =========== Load previous vocab ============#
 word2ix = cp.load(open(VOCAB_FILE))
@@ -219,8 +217,14 @@ for epoch in xrange(N_EPOCHS):
             param_groups['lr'] = new_lr
         loss, p_score, n_score, s_score, a_score = map(lambda x: getdata(x).numpy()[0], [loss, p_score, n_score, s_score, a_score])
         bar.update(ix + 1, values=[('l', loss), ('p', p_score), ('n', n_score), ('s', s_score), ('a', a_score), ('lr', new_lr)])
+    # Save model for persistance
+    weights = sw2v.embedding_i.weight
+    weights = weights.cpu() if use_cuda else weights
+    weights = weights.data.numpy()
+    save_file = BASE_DIR + "Models/subword_vocab_matrix_with_syn_ant_partial.npy"
+    np.save(save_file, weights)
 weights = sw2v.embedding_i.weight
 weights = weights.cpu() if use_cuda else weights
 weights = weights.data.numpy()
-save_file = BASE_DIR + "vocab_matrix_with_syn_ant.npy"
+save_file = BASE_DIR + "Models/subword_vocab_matrix_with_syn_ant.npy"
 np.save(save_file, weights)
