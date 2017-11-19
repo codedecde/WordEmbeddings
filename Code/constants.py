@@ -2,7 +2,7 @@
 Constants used
 '''
 # General Flags
-DEBUG = True
+DEBUG = False
 AUTONLAB = True
 BASE_DIR = "/home/scratch/bpatra/" if AUTONLAB else "../"
 DATA_DIR = BASE_DIR + "Data/"

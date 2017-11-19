@@ -206,3 +206,14 @@ def getdata(tensor):
         return tensor.cpu().data
     else:
         return tensor.data
+
+def make_directory(dir_name):
+    """
+    Creates a directory with the dir_name
+        :param dir_name: string
+    """
+    try:
+        os.makedirs(dir_name)
+    except OSError:
+        if not os.path.isdir(dir_name):
+            raise

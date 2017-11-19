@@ -2,7 +2,7 @@ from constants import *
 import cPickle as cp
 import torch.utils.data as ut
 import torch
-from utils import Progbar, getdata
+from utils import Progbar, getdata, make_directory
 from subword_model import subWord2vec
 from collections import OrderedDict
 import torch.optim as optim
@@ -20,7 +20,7 @@ SUB_WORD_FREQ = 2
 SUB_WORD_FILE = DATA_DIR + "BPE/vocab_subwords.txt"
 SUB_WORD_SEPERATOR = "@@"
 CODECS_FILE = DATA_DIR + "BPE/bpe_codecs.txt"
-MAX_SPLIT = 6
+MAX_SPLIT = 4
 # =========== Load previous vocab ============#
 word2ix = cp.load(open(VOCAB_FILE))
 data = filter(lambda x: x in word2ix, data)
@@ -199,8 +199,17 @@ bar = Progbar(N_EPOCHS)
 sw2v = subWord2vec(len(subword2ix), 300, sparse=False)
 if use_cuda:
     sw2v = sw2v.cuda()
-optimizer = optim.Adagrad(sw2v.parameters(), lr=lr)
+optimizer = optim.Adam(sw2v.parameters(), lr=lr)
 words_processed = 0.
+
+
+def save_model(model, filename):
+    weights = getdata(model.embedding_i.weight).numpy()
+    save_dir = '/'.join(filename.split('/')[:-1])
+    make_directory(save_dir)
+    np.save(filename, weights)
+
+
 for epoch in xrange(N_EPOCHS):
     n_batches = -(-len(iterator) // BATCH_SIZE)
     bar = Progbar(n_batches)
@@ -220,13 +229,8 @@ for epoch in xrange(N_EPOCHS):
         loss, p_score, n_score, s_score, a_score = map(lambda x: getdata(x).numpy()[0], [loss, p_score, n_score, s_score, a_score])
         bar.update(ix + 1, values=[('l', loss), ('p', p_score), ('n', n_score), ('s', s_score), ('a', a_score), ('lr', new_lr)])
     # Save model for persistance
-    weights = sw2v.embedding_i.weight
-    weights = weights.cpu() if use_cuda else weights
-    weights = weights.data.numpy()
-    save_file = BASE_DIR + "Models/subword_vocab_matrix_with_syn_ant_partial.npy"
-    np.save(save_file, weights)
-weights = sw2v.embedding_i.weight
-weights = weights.cpu() if use_cuda else weights
-weights = weights.data.numpy()
-save_file = BASE_DIR + "Models/subword_vocab_matrix_with_syn_ant.npy"
-np.save(save_file, weights)
+    save_file = BASE_DIR + "Models_Subwords/vocab_matrix_with_syn_ant_partial.npy"
+    save_model(sw2v, save_file)
+save_file = BASE_DIR + "Models_Subwords/vocab_matrix_with_syn_ant.npy"
+save_model(sw2v, save_file)
+print ''

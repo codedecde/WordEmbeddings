@@ -12,11 +12,15 @@ class Word2vec(nn.Module):
         self.num_words = num_words
         self.n_dim = n_dim
 
-        self.embedding_i = nn.Embedding(num_words, n_dim, padding_idx=0, sparse=sparse)
+        self.embedding_i = nn.Embedding(num_words, n_dim, padding_idx=0, sparse=sparse, scale_grad_by_freq=True)
         init_dim = np.sqrt(num_words)
-        # self.embedding_i.weight = nn.Parameter(torch.Tensor(num_words, n_dim).uniform_(-1. / init_dim, 1. / init_dim))
-        self.embedding_o = nn.Embedding(num_words, n_dim, padding_idx=0, sparse=sparse)
-        # self.embedding_o.weight = nn.Parameter(torch.Tensor(num_words, n_dim).uniform_(-1. / init_dim, 1. / init_dim))
+        e_i = np.random.uniform(-1. / init_dim, 1. / init_dim, (num_words, n_dim))
+        e_i[0] = 0.
+        self.embedding_i.weight = nn.Parameter(torch.Tensor(e_i))
+        self.embedding_o = nn.Embedding(num_words, n_dim, padding_idx=0, sparse=sparse, scale_grad_by_freq=True)
+        e_o = np.random.uniform(-1. / init_dim, 1. / init_dim, (num_words, n_dim))
+        e_o[0] = 0.
+        self.embedding_o.weight = nn.Parameter(torch.Tensor(e_o))
 
     def forward(self, w_ix, p_ix, neg_ix, syn_ix, ms_ix, ant_ix, ma_ix):
         """

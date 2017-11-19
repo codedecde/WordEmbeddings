@@ -2,7 +2,7 @@ import torch.utils.data as ut
 import torch
 import cPickle as cp
 import numpy as np
-from utils import Progbar, getdata
+from utils import Progbar, getdata, make_directory
 from model import Word2vec
 from torch.autograd import Variable
 import torch.optim as optim
@@ -124,8 +124,20 @@ lr = 0.025
 bar = Progbar(N_EPOCHS)
 w2v = Word2vec(len(word2ix), 300, sparse=False)
 
-optimizer = optim.Adagrad(w2v.parameters(), lr=lr)
+if use_cuda:
+    w2v = w2v.cuda()
+
+optimizer = optim.Adam(w2v.parameters(), lr=lr)
 words_processed = 0.
+
+
+def save_model(model, filename):
+    weights = getdata(model.embedding_i.weight).numpy()
+    save_dir = '/'.join(filename.split('/')[:-1])
+    make_directory(save_dir)
+    np.save(filename, weights)
+
+
 for epoch in xrange(N_EPOCHS):
     n_batches = len(iterator) // BATCH_SIZE if len(iterator) % BATCH_SIZE == 0 else (len(iterator) // BATCH_SIZE) + 1
     bar = Progbar(n_batches)
@@ -145,8 +157,9 @@ for epoch in xrange(N_EPOCHS):
             param_groups['lr'] = new_lr
         loss, p_score, n_score, s_score, a_score = map(lambda x: getdata(x).numpy()[0], [loss, p_score, n_score, s_score, a_score])
         bar.update(ix + 1, values=[('l', loss), ('p', p_score), ('n', n_score), ('s', s_score), ('a', a_score), ('lr', new_lr)])
-weights = w2v.embedding_i.weight
-weights = weights.cpu() if use_cuda else weights
-weights = weights.data.numpy()
+    # Save model for persistence
+    save_file = BASE_DIR + "Models/vocab_matrix_with_syn_ant_partial.npy"
+    save_model(w2v, save_file)
 save_file = BASE_DIR + "Models/vocab_matrix_with_syn_ant.npy"
-np.save(save_file, weights)
+save_model(w2v, save_file)
+print ''
