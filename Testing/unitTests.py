@@ -1,5 +1,7 @@
 from TestClass import TestClass
 import numpy as np
+import cPickle as cp
+import sys
 from gensim.models.keyedvectors import KeyedVectors
 
 
@@ -46,35 +48,68 @@ class Word2vecEmbeddings(TestClass):
         return self.word_vectors[w] if w in self.word_vectors else None
 
 
+class SubwordsClass(TestClass):
+    def __init__(self, name, modelpath, bpe, subword2ix):
+        # Load bpe models
+        self.name = name
+        self.bpe = bpe
+        self.W_embed = np.load(modelpath)
+        self.subword2ix = subword2ix
+        super(SubwordsClass, self).__init__()
+
+    def word2vec(self, w):
+        w_seg = self.bpe.segment(w)
+        w_embed = 0.
+        for seg in w_seg:
+            if seg in self.subword2ix:
+                w_embed += self.W_embed[self.subword2ix[seg]]
+        return w_embed
+
+
 if __name__ == "__main__":
-    cfv_file = "../Baselines/Counter-fitted-vectors/counter-fitted-vectors.txt"
+    # ============ Subword classifier ====================#
+    sys.path.append('../')
+    from Code.constants import *
+    SUB_WORD_FILE = DATA_DIR + "BPE/vocab_subwords.txt"
+    SUB_WORD_SEPERATOR = "@@"
+    CODECS_FILE = DATA_DIR + "BPE/bpe_codecs.txt"
+    from Code.bpe import BPE
+    bpe = BPE(open(CODECS_FILE), separator=SUB_WORD_SEPERATOR)
+    subword2ix = cp.load(open(SUBWORD_VOCAB_FILE))
+    subword_tester = SubwordsClass("Subwords", "../Models/subword_vocab_matrix_with_syn_ant.npy", bpe, subword2ix)
+    subword_tester.load_data()
+    subword_tester.compute_stats()
+    # ============= Word2vec Google =======================#
     glove_file = "../Baselines/Glove/glove.840B.300d.txt"
     print "Word2vec Embeddings"
     word2vec_tester = Word2vecEmbeddings("Word2vec", "../Models/Word2Vec/vectors_skipgram_300.bin")
     word2vec_tester.load_data()
     word2vec_tester.compute_stats()
+    # ============= Word2vec Pytorch ======================#
     print "Word2vec Pytorch"
     word2vec_tester = EmbeddingFileTester("Word2vec_pytorch", "../Models/Embeddings_file.txt")
     word2vec_tester.load_data()
     word2vec_tester.compute_stats()
+    # ============= Word2vec Pytorch with Syn =============#
     print "Word2vec Pytorch with syn constraints"
     word2vec_tester = EmbeddingFileTester("Word2vec_pytorch_with_syn", "../Models/embeddings_with_syn_info_epoch_5_no_lr_decay.txt")
     word2vec_tester.load_data()
     word2vec_tester.compute_stats()
+    # ============= Fastext ===============================#
     print "Fast Text"
     fastext_tester = EmbeddingFileTester("Fast_Text", "../Models/vectors_fastext.txt")
     fastext_tester.load_data()
     fastext_tester.compute_stats()
+    # ============= Counterfitted vectors =================#
     print "Counter Fitted Vectors ..."
+    cfv_file = "../Baselines/Counter-fitted-vectors/counter-fitted-vectors.txt"
     glove_tester = EmbeddingFileTester(name="Counter Fitted Vectors", filepath=cfv_file)
-    print 'LOADING DATA ...'
     glove_tester.load_data()
-    print 'DATA LOADED ....'
     glove_tester.compute_stats()
+    # ============= Glove Embeddings ======================#
     print 'Glove Embedding Vectors ...'
     glove_tester = EmbeddingFileTester(name="Glove Embedding Vectors", filepath=glove_file)
     #glove_tester = EmbeddingFileTester(name="Glove Embedding Vectors", filepath="../Models/glove.txt")
-    print 'LOADING DATA ...'
     glove_tester.load_data()
-    print 'DATA LOADED ....'
     glove_tester.compute_stats()
+    # ======================================================#

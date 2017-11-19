@@ -18,7 +18,7 @@ data = filter(lambda x: len(x) > 1, open(TEXT).read().split(' '))
 unigram_table = np.load(UNIGRAM_TABLE_FILE)
 SUB_WORD_FREQ = 2
 SUB_WORD_FILE = DATA_DIR + "BPE/vocab_subwords.txt"
-SUB_WORD_SUFFIX = "@@"
+SUB_WORD_SEPERATOR = "@@"
 CODECS_FILE = DATA_DIR + "BPE/bpe_codecs.txt"
 MAX_SPLIT = 6
 # =========== Load previous vocab ============#
@@ -35,6 +35,8 @@ counts = filter(lambda x: x[1] >= SUB_WORD_FREQ, sorted(counts.items(), key=lamb
 subword2ix = {PAD_TOK: 0}
 for w, c in counts:
     subword2ix[w] = len(subword2ix)
+
+cp.dump(subword2ix, open(SUBWORD_VOCAB_FILE, 'wb'))
 
 
 # =========== Now process synonyms and antonyms ===#
@@ -74,7 +76,7 @@ with open(WORDNET_ANT_FILE) as f:
 Preprocessing involves splitting data into byte pairs, ignoring OOV's and indexing tokens
 Also involves adding synonyms and antonyms
 '''
-bpe = BPE(open(CODECS_FILE))
+bpe = BPE(open(CODECS_FILE), separator=SUB_WORD_SEPERATOR)
 
 
 def index_data(data, window, bpe, subword2ix, syn_dict, ant_dict):
