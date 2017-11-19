@@ -2,9 +2,9 @@
 Constants used
 '''
 # General Flags
-DEBUG = False
-AZURE = False
-BASE_DIR = "/home/bass/DataDir/Embeddings/" if AZURE else "../"
+DEBUG = True
+AUTONLAB = True
+BASE_DIR = "/home/scratch/bpatra/" if AUTONLAB else "../"
 DATA_DIR = BASE_DIR + "Data/"
 VOCAB_FILE = DATA_DIR + ("word2ix.dat" if DEBUG else "word2ix_text8.dat")
 SUBWORD_VOCAB_FILE = DATA_DIR + ("subword2ix.dat" if DEBUG else "subword2ix_text8.dat")
