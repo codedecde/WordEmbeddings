@@ -6,16 +6,16 @@ import pdb
 
 
 class subWord2vec(nn.Module):
-    def __init__(self, num_units, n_dim, sparse=False):
+    def __init__(self, num_units, n_dim, sparse=False, scale_grad=False):
         super(subWord2vec, self).__init__()
         self.num_units = num_units
         self.n_dim = n_dim
         init_dim = np.sqrt(self.n_dim)
-        self.embedding_i = nn.Embedding(num_units, n_dim, padding_idx=0, sparse=sparse, scale_grad_by_freq=True)
+        self.embedding_i = nn.Embedding(num_units, n_dim, padding_idx=0, sparse=sparse, scale_grad_by_freq=scale_grad)
         e_i = np.random.uniform(-1. / init_dim, 1. / init_dim, (num_units, n_dim))
         e_i[0] = 0.
         self.embedding_i.weight = nn.Parameter(torch.Tensor(e_i))
-        self.embedding_o = nn.Embedding(num_units, n_dim, padding_idx=0, sparse=sparse, scale_grad_by_freq=True)
+        self.embedding_o = nn.Embedding(num_units, n_dim, padding_idx=0, sparse=sparse, scale_grad_by_freq=scale_grad)
         e_o = np.random.uniform(-1. / init_dim, 1. / init_dim, (num_units, n_dim))
         e_o[0] = 0.
         self.embedding_o.weight = nn.Parameter(torch.Tensor(e_o))

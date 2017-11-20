@@ -6,7 +6,9 @@ from utils import Progbar, getdata, make_directory
 from subword_model import subWord2vec
 from collections import OrderedDict
 import torch.optim as optim
+import os
 from torch.autograd import Variable
+import argparse
 import sys
 from bpe import BPE
 import numpy as np
@@ -178,28 +180,55 @@ class DataIterator(ut.Dataset):
         return w_ix, p_ix, n_ix, s_ix, ms_ix, a_ix, ma_ix
 
 
-window = 4
+def parse_args():
+    def convert_boolean(args, field):
+        if getattr(args, field).lower() in set(["false", "true"]):
+            setattr(args, field, False if getattr(args, field).lower() == "false" else True)
+        else:
+            raise RuntimeError("value %s not valid for booleans" % (getattr(args, field)))
+
+    parser = argparse.ArgumentParser(description="Word Embeddings")
+    parser.add_argument("-w", "--window", help="window size", dest="window", default=4, type=int)
+    parser.add_argument("-ns", "--neg_samples", help="window size", dest="neg_samples", default=25, type=int)
+    parser.add_argument("-s", "--synonyms", help="Synonyms", dest="synonyms", default=4, type=int)
+    parser.add_argument("-sg", "--scale_grad", help="Scale Gradients by frequency", dest="scale_grad", default="False", type=str)
+    parser.add_argument("-a", "--antonyms", help="Antonyms", dest="antonyms", default=4, type=int)
+    parser.add_argument("-b", "--batch", help="Batch Size", dest="batch", default=128, type=int)
+    parser.add_argument("-e", "--epochs", help="Epochs", dest="epochs", default=5, type=int)
+    parser.add_argument('-o', "--optimizer", help="Optimizer", dest='optimizer', default="Adagrad", type=str)
+    args = parser.parse_args()
+    convert_boolean(args, 'scale_grad')
+    return args
+
+args = parse_args()
+window = args.window
 indexed_data, syn_list, ant_list = index_data(data, window=window,
                                               bpe=bpe, subword2ix=subword2ix,
                                               syn_dict=syn_dict, ant_dict=ant_dict)
-neg_samples = 25
-n_syn = 4
-n_ant = 4
+neg_samples = args.neg_samples
+n_syn = args.synonyms
+n_ant = args.antonyms
 iterator = DataIterator(indexed_data=indexed_data, word2ix=word2ix,
                         subword2ix=subword2ix, unigram_table=unigram_table,
                         syn_list=syn_list, ant_list=ant_list, n_neg=neg_samples,
                         n_syn=n_syn, n_ant=n_ant, bpe=bpe)
-BATCH_SIZE = 128
+BATCH_SIZE = args.batch
 dataloader = ut.DataLoader(iterator, batch_size=BATCH_SIZE,
                            shuffle=True, num_workers=0)
 
-N_EPOCHS = 5
+N_EPOCHS = args.epochs
 lr = 0.025
 bar = Progbar(N_EPOCHS)
-sw2v = subWord2vec(len(subword2ix), 300, sparse=False)
+sw2v = subWord2vec(len(subword2ix), 300, sparse=False, scale_grad=args.scale_grad)
 if use_cuda:
     sw2v = sw2v.cuda()
-optimizer = optim.Adam(sw2v.parameters(), lr=lr)
+
+if hasattr(optim, args.optimizer):
+    optimizer = getattr(optim, args.optimizer)(sw2v.parameters(), lr=lr)
+else:
+    print "Optimizer %s not found. Defaulting to Adagrad" % (args.optimizer)
+    optimizer = optim.Adagrad(sw2v.parameters(), lr=lr)
+
 words_processed = 0.
 
 
@@ -229,8 +258,12 @@ for epoch in xrange(N_EPOCHS):
         loss, p_score, n_score, s_score, a_score = map(lambda x: getdata(x).numpy()[0], [loss, p_score, n_score, s_score, a_score])
         bar.update(ix + 1, values=[('l', loss), ('p', p_score), ('n', n_score), ('s', s_score), ('a', a_score), ('lr', new_lr)])
     # Save model for persistance
-    save_file = BASE_DIR + "Models_Subwords/vocab_matrix_with_syn_ant_partial.npy"
-    save_model(sw2v, save_file)
-save_file = BASE_DIR + "Models_Subwords/vocab_matrix_with_syn_ant.npy"
-save_model(sw2v, save_file)
+    if epoch != N_EPOCHS - 1:
+        save_file = BASE_DIR + "Models_Subwords/optim_{}_sg_{}_w_{}_ns_{}_s_{}_a_{}_partial".format(args.optimizer, args.scale_grad, args.window, args.neg_samples, args.synonyms, args.antonyms)
+        save_model(sw2v, save_file)
+    else:
+        partial_save_file = BASE_DIR + "Models_Subwords/optim_{}_sg_{}_w_{}_ns_{}_s_{}_a_{}_partial.npy".format(args.optimizer, args.scale_grad, args.window, args.neg_samples, args.synonyms, args.antonyms)
+        os.remove(partial_save_file)
+        save_file = BASE_DIR + "Models_Subwords/optim_{}_sg_{}_w_{}_ns_{}_s_{}_a_{}".format(args.optimizer, args.scale_grad, args.window, args.neg_samples, args.synonyms, args.antonyms)
+        save_model(sw2v, save_file)
 print ''
