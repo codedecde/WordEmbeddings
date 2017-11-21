@@ -185,8 +185,12 @@ for epoch in xrange(N_EPOCHS):
         loss, p_score, n_score, s_score, a_score = map(lambda x: getdata(x).numpy()[0], [loss, p_score, n_score, s_score, a_score])
         bar.update(ix + 1, values=[('l', loss), ('p', p_score), ('n', n_score), ('s', s_score), ('a', a_score), ('lr', new_lr)])
     # Save model for persistence
-    save_file = BASE_DIR + "Models/optim_{}_sg_{}_w_{}_ns_{}_s_{}_a_{}_partial".format(args.optimizer, args.scale_grad, args.window, args.neg_samples, args.synonyms, args.antonyms)
-    save_model(w2v, save_file)
-save_file = BASE_DIR + "Models/optim_{}_sg_{}_w_{}_ns_{}_s_{}_a_{}".format(args.optimizer, args.scale_grad, args.window, args.neg_samples, args.synonyms, args.antonyms)
-save_model(w2v, save_file)
+    if epoch != N_EPOCHS - 1:
+        save_file = BASE_DIR + "Models/optim_{}_sg_{}_w_{}_ns_{}_s_{}_a_{}_partial".format(args.optimizer, args.scale_grad, args.window, args.neg_samples, args.synonyms, args.antonyms)
+        save_model(w2v, save_file)
+    else:
+        partial_save_file = BASE_DIR + "Models/optim_{}_sg_{}_w_{}_ns_{}_s_{}_a_{}_partial.npy".format(args.optimizer, args.scale_grad, args.window, args.neg_samples, args.synonyms, args.antonyms)
+        os.remove(partial_save_file)
+        save_file = BASE_DIR + "Models/optim_{}_sg_{}_w_{}_ns_{}_s_{}_a_{}".format(args.optimizer, args.scale_grad, args.window, args.neg_samples, args.synonyms, args.antonyms)
+        save_model(w2v, save_file)
 print ''
