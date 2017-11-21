@@ -59,9 +59,11 @@ class SubwordsClass(TestClass):
 
     def word2vec(self, w):
         w_seg = self.bpe.segment(w)
-        w_embed = 0.
+        w_embed = None
         for seg in w_seg:
             if seg in self.subword2ix:
+                if w_embed is None:
+                    w_embed = 0.
                 w_embed += self.W_embed[self.subword2ix[seg]]
         return w_embed
 

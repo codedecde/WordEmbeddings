@@ -1,8 +1,10 @@
 import numpy as np
 import pdb
+import sys
 from gensim.models.keyedvectors import KeyedVectors
 from utils import Progbar
 import evaluate as E
+import cPickle as cp
 
 
 def find_closest_word(vector, word2vec):
@@ -53,9 +55,25 @@ def load_word_vector(filename, wordset):
 def load_w2v(fname, wordset):
     word_vectors = KeyedVectors.load_word2vec_format(fname, binary=True)
     word2vec = {}
-    for w in word_vectors.vocab:
-        if w in wordset:
+    for w in wordset:
+        if w in word_vectors.vocab:
             word2vec[w] = word_vectors[w]
+    return word2vec
+
+
+def load_sw2v(fname, wordset, bpe, subword2ix):
+    word2vec = {}
+    W_embed = np.load(fname)
+    for word in wordset:
+        w_seg = bpe.segment(word)
+        w_embed = None
+        for seg in w_seg:
+            if seg in subword2ix:
+                if w_embed is None:
+                    w_embed = 0.
+                w_embed += W_embed[subword2ix[seg]]
+        if w_embed is not None:
+            word2vec[word] = w_embed
     return word2vec
 
 
@@ -71,13 +89,28 @@ if __name__ == "__main__":
             for w in line:
                 wordset.add(w)
             analogies.append(line)
+
+    # =========== Loading Google Word2vec ====================================#
     word2vec = load_w2v("../Models/Word2Vec/vectors_skipgram_300.bin", wordset)
+    # =========== Loading auxillary info for subword-model ===================#
+    sys.path.append('../')
+    from Code.constants import *
+    SUB_WORD_FILE = DATA_DIR + "BPE/vocab_subwords.txt"
+    SUB_WORD_SEPERATOR = "@@"
+    CODECS_FILE = DATA_DIR + "BPE/bpe_codecs.txt"
+    from Code.bpe import BPE
+    bpe = BPE(open(CODECS_FILE), separator=SUB_WORD_SEPERATOR)
+    subword2ix = cp.load(open(SUBWORD_VOCAB_FILE))
+    # =========================================================================#
     methods = {"Word2vec": word2vec,
                "Word2vec Pytorch": load_word_vector("../Models/Embeddings_file.txt", wordset),
                "Word2vec with syn cons": load_word_vector("../Models/embeddings_with_syn_info_epoch_5_no_lr_decay.txt", wordset),
                "Fast Text": load_word_vector("../Models/fastext.vec", wordset),
                "Counter Fitted Vectors": load_word_vector("../Baselines/Counter-fitted-vectors/counter-fitted-vectors.txt", wordset),
-               "Glove Embedding Vectors": load_word_vector("../Models/glove.txt", wordset)
+               "Glove Embedding Vectors": load_word_vector("../Models/glove.txt", wordset),
+               "Subword Embedding Vectors": load_sw2v("../Models/subword_vocab_matrix_with_syn_ant.npy", wordset, bpe, subword2ix)
                }
     accuracies = compute_accuracy(methods, analogies)
-    pdb.set_trace()
+    print '\nPrinting the Analogy scores (@5)'
+    for method in accuracies:
+        print '\t%26s:\t%.4f' % (method, accuracies[method])
