@@ -12,6 +12,7 @@ import argparse
 import sys
 from bpe import BPE
 import numpy as np
+from probsplit import ProbSplit
 
 
 # =========== CONSTANTS ==========================#
@@ -19,9 +20,9 @@ use_cuda = torch.cuda.is_available()
 data = filter(lambda x: len(x) > 1, open(TEXT).read().split(' '))
 unigram_table = np.load(UNIGRAM_TABLE_FILE)
 SUB_WORD_FREQ = 2
-SUB_WORD_FILE = DATA_DIR + "Subunits/subunit.model"
+SUB_WORD_FILE = DATA_DIR + "Subunits/subunit_full.model"
 SUB_WORD_SEPERATOR = "@@"
-CODECS_FILE = DATA_DIR + "Subunits/subunit.model"
+CODECS_FILE = DATA_DIR + "Subunits/subunit_full.model"
 MAX_SPLIT = 5
 # =========== Load previous vocab ============#
 word2ix = cp.load(open(VOCAB_FILE))
@@ -83,14 +84,14 @@ with open(WORDNET_ANT_FILE) as f:
 Preprocessing involves splitting data into byte pairs, ignoring OOV's and indexing tokens
 Also involves adding synonyms and antonyms
 '''
-bpe = BPE(open(CODECS_FILE), separator=SUB_WORD_SEPERATOR)
+spl = ProbSplit(open(CODECS_FILE), separator=SUB_WORD_SEPERATOR)
 
 
-def index_data(data, window, bpe, subword2ix, syn_dict, ant_dict):
+def index_data(data, window, spl, subword2ix, syn_dict, ant_dict):
     """Indexes Data for data iterator
         :param data: [list of words]
         :param window: int : The positive window size / 2
-        :param bpe: The byte pair encoder
+        :param spl: The word splitter: byte pair encoder or probsplit
         :param subword2ix: dictionary mapping subwords2ix
         :param syn_dict: dictionary from word to its synonyms
         :param ant_dict: dictionary from word to its antonyms
@@ -107,7 +108,7 @@ def index_data(data, window, bpe, subword2ix, syn_dict, ant_dict):
         return s
     clean = []
     for elem in data:
-        s = bpe.segment(elem)
+        s = spl.segment(elem)
         if all(e in subword2ix for e in s):
             clean.append((elem, index_segment(s, subword2ix)))
     indexed_data = []
@@ -119,9 +120,9 @@ def index_data(data, window, bpe, subword2ix, syn_dict, ant_dict):
         w = indices[ix]
         ctxt = indices[ix - window: ix] + indices[ix + 1: ix + window + 1]
         indexed_data.append((w, ctxt))
-        syns = [index_segment(bpe.segment(_w), subword2ix) for _w in (syn_dict[words[ix]] if words[ix] in syn_dict else set())]
+        syns = [index_segment(spl.segment(_w), subword2ix) for _w in (syn_dict[words[ix]] if words[ix] in syn_dict else set())]
         syn_list.append(np.array(syns))
-        ants = [index_segment(bpe.segment(_w), subword2ix) for _w in (ant_dict[words[ix]] if words[ix] in ant_dict else set())]
+        ants = [index_segment(spl.segment(_w), subword2ix) for _w in (ant_dict[words[ix]] if words[ix] in ant_dict else set())]
         ant_list.append(np.array(ants))
         bar.update(ix - window + 1)
     return indexed_data, syn_list, ant_list
@@ -139,10 +140,10 @@ class DataIterator(ut.Dataset):
         self.n_neg = kwargs['n_neg']
         self.n_syn = kwargs['n_syn']
         self.n_ant = kwargs['n_ant']
-        self.bpe = kwargs['bpe']
+        self.spl = kwargs['spl']
 
     def index_word(self, w):
-        d = self.bpe.segment(w)
+        d = self.spl.segment(w)
         for i in xrange(len(d)):
             # Haitian
             if d[i] not in self.subword2ix:
@@ -212,7 +213,7 @@ def parse_args():
 args = parse_args()
 window = args.window
 indexed_data, syn_list, ant_list = index_data(data, window=window,
-                                              bpe=bpe, subword2ix=subword2ix,
+                                              spl=spl, subword2ix=subword2ix,
                                               syn_dict=syn_dict, ant_dict=ant_dict)
 neg_samples = args.neg_samples
 n_syn = args.synonyms
@@ -220,7 +221,7 @@ n_ant = args.antonyms
 iterator = DataIterator(indexed_data=indexed_data, word2ix=word2ix,
                         subword2ix=subword2ix, unigram_table=unigram_table,
                         syn_list=syn_list, ant_list=ant_list, n_neg=neg_samples,
-                        n_syn=n_syn, n_ant=n_ant, bpe=bpe)
+                        n_syn=n_syn, n_ant=n_ant, spl=spl)
 BATCH_SIZE = args.batch
 dataloader = ut.DataLoader(iterator, batch_size=BATCH_SIZE,
                            shuffle=True, num_workers=0)

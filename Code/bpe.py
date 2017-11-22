@@ -24,94 +24,62 @@ from io import open
 argparse.open = open
 
 
+
 class BPE(object):
 
     def __init__(self, codes, separator='@@', vocab=None, glossaries=None):
 
-        # # check version information
-        # firstline = codes.readline()
-        # if firstline.startswith('#version:'):
-        #     self.version = tuple([int(x) for x in re.sub(r'(\.0+)*$', '', firstline.split()[-1]).split(".")])
-        # else:
-        #     self.version = (0, 1)
-        #     codes.seek(0)
+        # check version information
+        firstline = codes.readline()
+        if firstline.startswith('#version:'):
+            self.version = tuple([int(x) for x in re.sub(r'(\.0+)*$', '', firstline.split()[-1]).split(".")])
+        else:
+            self.version = (0, 1)
+            codes.seek(0)
 
-        # self.bpe_codes = [tuple(item.split()) for item in codes]
+        self.bpe_codes = [tuple(item.split()) for item in codes]
 
-        # # some hacking to deal with duplicates (only consider first instance)
-        # self.bpe_codes = dict([(code, i) for (i, code) in reversed(list(enumerate(self.bpe_codes)))])
+        # some hacking to deal with duplicates (only consider first instance)
+        self.bpe_codes = dict([(code, i) for (i, code) in reversed(list(enumerate(self.bpe_codes)))])
 
-        # self.bpe_codes_reverse = dict([(pair[0] + pair[1], pair) for pair, i in self.bpe_codes.items()])
+        self.bpe_codes_reverse = dict([(pair[0] + pair[1], pair) for pair, i in self.bpe_codes.items()])
 
-        # self.separator = separator
+        self.separator = separator
 
-        # self.vocab = vocab
+        self.vocab = vocab
 
-        # self.glossaries = glossaries if glossaries else []
+        self.glossaries = glossaries if glossaries else []
 
-        # self.cache = {}
-        self.model = dict()
-        self.wordsplit = dict()
-        for line in codes:
-            subunit = line.split()[0]
-            prob = float(line.split()[1])
-            self.model[subunit] = prob
+        self.cache = {}
 
     def segment(self, sentence):
+
+        """segment single sentence (whitespace-tokenized string) with BPE encoding"""
         output = []
         for word in sentence.split():
-            if word not in self.wordsplit:
-                weight, splits = self._segment(word, 0, self.model)
-                self.wordsplit[word] = splits
-            output = output + self.wordsplit[word]
+            new_word = [out for segment in self._isolate_glossaries(word)
+                        for out in encode(segment,
+                                          self.bpe_codes,
+                                          self.bpe_codes_reverse,
+                                          self.vocab,
+                                          self.separator,
+                                          self.version,
+                                          self.cache,
+                                          self.glossaries)]
+
+            for item in new_word[:-1]:
+                output.append(item + self.separator)
+            output.append(new_word[-1])
+
         return output
 
-    #     """segment single sentence (whitespace-tokenized string) with BPE encoding"""
-    #     output = []
-    #     for word in sentence.split():
-    #         new_word = [out for segment in self._isolate_glossaries(word)
-    #                     for out in encode(segment,
-    #                                       self.bpe_codes,
-    #                                       self.bpe_codes_reverse,
-    #                                       self.vocab,
-    #                                       self.separator,
-    #                                       self.version,
-    #                                       self.cache,
-    #                                       self.glossaries)]
-
-    #         for item in new_word[:-1]:
-    #             output.append(item + self.separator)
-    #         output.append(new_word[-1])
-
-    #     return output
-
-    # def _isolate_glossaries(self, word):
-    #     word_segments = [word]
-    #     for gloss in self.glossaries:
-    #         word_segments = [out_segments for segment in word_segments
-    #                              for out_segments in isolate_glossary(segment, gloss)]
-    #     return word_segments
+    def _isolate_glossaries(self, word):
+        word_segments = [word]
+        for gloss in self.glossaries:
+            word_segments = [out_segments for segment in word_segments
+                                 for out_segments in isolate_glossary(segment, gloss)]
+        return word_segments
     
-    def _segment(self, token, id, model):
-        if id == len(token):
-            #print id, 0
-            return 0, []
-        if id == len(token) - 1:
-            #print id, -1
-            return -10000000, []
-        if id > len(token):
-            assert(0)
-
-        weight = []
-        bestSplitCandidate = []
-        for i in range(id + 2, min(len(token)+1, id + 6)):
-            weight_rem, units = self._segment(token, i, model)
-            bestunits = [token[id : i]] + units
-            bestSplitCandidate.append(bestunits)
-            weight.append(math.log(model.get(token[id : i], model['MIN' + str(i-id)])) + weight_rem)
-        bestsplit = bestSplitCandidate[weight.index(max(weight))]
-        return max(weight), bestsplit
-
 
 def create_parser():
     parser = argparse.ArgumentParser(
