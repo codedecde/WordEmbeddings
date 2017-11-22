@@ -1,5 +1,6 @@
 from constants import *
 import cPickle as cp
+import pdb
 import torch.utils.data as ut
 import torch
 from utils import Progbar, getdata, make_directory
@@ -12,6 +13,7 @@ import argparse
 import sys
 from bpe import BPE
 import numpy as np
+from probsplit import ProbSplit
 
 
 # =========== CONSTANTS ==========================#
@@ -19,30 +21,24 @@ use_cuda = torch.cuda.is_available()
 data = filter(lambda x: len(x) > 1, open(TEXT).read().split(' '))
 unigram_table = np.load(UNIGRAM_TABLE_FILE)
 SUB_WORD_FREQ = 2
-SUB_WORD_FILE = DATA_DIR + "BPE/vocab_subwords.txt"
+SUB_WORD_FILE = DATA_DIR + "Subunits/subunit_full.model"
 SUB_WORD_SEPERATOR = "@@"
-CODECS_FILE = DATA_DIR + "BPE/bpe_codecs.txt"
-MAX_SPLIT = 4
-SUBWORD_VOCAB_FILE = DATA_DIR + "BPE/" + ("subword2ix.dat" if DEBUG else "subword2ix_text8.dat")
-BPE_DICT = DATA_DIR + "BPE/bpe_vocab.txt"
+CODECS_FILE = DATA_DIR + "Subunits/subunit_full.model"
+MAX_SPLIT = 5
+SUBWORD_VOCAB_FILE = DATA_DIR + "Subunits/" + ("subword2ix.dat" if DEBUG else "subword2ix_text8.dat")
 SAVE_PREFIX = BASE_DIR + "Models_Subwords/"
 make_directory(SAVE_PREFIX)
-SAVE_PREFIX += "BPE/"
+SAVE_PREFIX += "Subunits/"
 make_directory(SAVE_PREFIX)
 # =========== Load previous vocab ============#
 word2ix = cp.load(open(VOCAB_FILE))
 data = filter(lambda x: x in word2ix, data)
 # =========== Build the vocab ====================#
 
-counts = OrderedDict()
-for line in open(SUB_WORD_FILE):
-    line = line.strip().split()
-    assert line[0] not in counts, "Duplicate %s found " % (line[0])
-    counts[line[0]] = int(line[1])
-counts = filter(lambda x: x[1] >= SUB_WORD_FREQ, sorted(counts.items(), key=lambda x: x[1], reverse=True))
 subword2ix = {PAD_TOK: 0}
-for w, c in counts:
-    subword2ix[w] = len(subword2ix)
+for line in open(SUB_WORD_FILE):
+    tokens = line.strip().split()
+    subword2ix[tokens[0]] = len(subword2ix)
 
 cp.dump(subword2ix, open(SUBWORD_VOCAB_FILE, 'wb'))
 
@@ -84,14 +80,14 @@ with open(WORDNET_ANT_FILE) as f:
 Preprocessing involves splitting data into byte pairs, ignoring OOV's and indexing tokens
 Also involves adding synonyms and antonyms
 '''
-bpe = BPE(open(CODECS_FILE), separator=SUB_WORD_SEPERATOR)
+spl = ProbSplit(open(CODECS_FILE), separator=SUB_WORD_SEPERATOR)
 
 
-def index_data(data, window, bpe, subword2ix, syn_dict, ant_dict):
+def index_data(data, window, spl, subword2ix, syn_dict, ant_dict):
     """Indexes Data for data iterator
         :param data: [list of words]
         :param window: int : The positive window size / 2
-        :param bpe: The byte pair encoder
+        :param spl: The word splitter: byte pair encoder or probsplit
         :param subword2ix: dictionary mapping subwords2ix
         :param syn_dict: dictionary from word to its synonyms
         :param ant_dict: dictionary from word to its antonyms
@@ -102,12 +98,13 @@ def index_data(data, window, bpe, subword2ix, syn_dict, ant_dict):
     """
     # Clean data:
     def index_segment(segmented_word, subword2ix):
-        s = [subword2ix[e] for e in segmented_word][:MAX_SPLIT]
+        # Haitian
+        s = [subword2ix[e] for e in segmented_word if e in subword2ix][:MAX_SPLIT]
         s += [subword2ix[PAD_TOK] for _ in xrange(MAX_SPLIT - len(s))]
         return s
     clean = []
     for elem in data:
-        s = bpe.segment(elem)
+        s = spl.segment(elem)
         if all(e in subword2ix for e in s):
             clean.append((elem, index_segment(s, subword2ix)))
     indexed_data = []
@@ -119,9 +116,9 @@ def index_data(data, window, bpe, subword2ix, syn_dict, ant_dict):
         w = indices[ix]
         ctxt = indices[ix - window: ix] + indices[ix + 1: ix + window + 1]
         indexed_data.append((w, ctxt))
-        syns = [index_segment(bpe.segment(_w), subword2ix) for _w in (syn_dict[words[ix]] if words[ix] in syn_dict else set())]
+        syns = [index_segment(spl.segment(_w), subword2ix) for _w in (syn_dict[words[ix]] if words[ix] in syn_dict else set())]
         syn_list.append(np.array(syns))
-        ants = [index_segment(bpe.segment(_w), subword2ix) for _w in (ant_dict[words[ix]] if words[ix] in ant_dict else set())]
+        ants = [index_segment(spl.segment(_w), subword2ix) for _w in (ant_dict[words[ix]] if words[ix] in ant_dict else set())]
         ant_list.append(np.array(ants))
         bar.update(ix - window + 1)
     return indexed_data, syn_list, ant_list
@@ -139,11 +136,14 @@ class DataIterator(ut.Dataset):
         self.n_neg = kwargs['n_neg']
         self.n_syn = kwargs['n_syn']
         self.n_ant = kwargs['n_ant']
-        self.bpe = kwargs['bpe']
+        self.spl = kwargs['spl']
 
     def index_word(self, w):
-        d = self.bpe.segment(w)
+        d = self.spl.segment(w)
         for i in xrange(len(d)):
+            # Haitian
+            if d[i] not in self.subword2ix:
+                d[i] = PAD_TOK
             assert d[i] in self.subword2ix, "Word %s not found " % (d[i])
             d[i] = self.subword2ix[d[i]]
         d = d[:MAX_SPLIT]
@@ -209,7 +209,7 @@ def parse_args():
 args = parse_args()
 window = args.window
 indexed_data, syn_list, ant_list = index_data(data, window=window,
-                                              bpe=bpe, subword2ix=subword2ix,
+                                              spl=spl, subword2ix=subword2ix,
                                               syn_dict=syn_dict, ant_dict=ant_dict)
 neg_samples = args.neg_samples
 n_syn = args.synonyms
@@ -217,7 +217,7 @@ n_ant = args.antonyms
 iterator = DataIterator(indexed_data=indexed_data, word2ix=word2ix,
                         subword2ix=subword2ix, unigram_table=unigram_table,
                         syn_list=syn_list, ant_list=ant_list, n_neg=neg_samples,
-                        n_syn=n_syn, n_ant=n_ant, bpe=bpe)
+                        n_syn=n_syn, n_ant=n_ant, spl=spl)
 BATCH_SIZE = args.batch
 dataloader = ut.DataLoader(iterator, batch_size=BATCH_SIZE,
                            shuffle=True, num_workers=0)
