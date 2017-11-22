@@ -19,24 +19,29 @@ use_cuda = torch.cuda.is_available()
 data = filter(lambda x: len(x) > 1, open(TEXT).read().split(' '))
 unigram_table = np.load(UNIGRAM_TABLE_FILE)
 SUB_WORD_FREQ = 2
-SUB_WORD_FILE = DATA_DIR + "BPE/vocab_subwords.txt"
+SUB_WORD_FILE = DATA_DIR + "Subunits/subunit.model"
 SUB_WORD_SEPERATOR = "@@"
-CODECS_FILE = DATA_DIR + "BPE/bpe_codecs.txt"
-MAX_SPLIT = 4
+CODECS_FILE = DATA_DIR + "Subunits/subunit.model"
+MAX_SPLIT = 5
 # =========== Load previous vocab ============#
 word2ix = cp.load(open(VOCAB_FILE))
 data = filter(lambda x: x in word2ix, data)
 # =========== Build the vocab ====================#
 
-counts = OrderedDict()
-for line in open(SUB_WORD_FILE):
-    line = line.strip().split()
-    assert line[0] not in counts, "Duplicate %s found " % (line[0])
-    counts[line[0]] = int(line[1])
-counts = filter(lambda x: x[1] >= SUB_WORD_FREQ, sorted(counts.items(), key=lambda x: x[1], reverse=True))
+# counts = OrderedDict()
+# for line in open(SUB_WORD_FILE):
+#     line = line.strip().split()
+#     assert line[0] not in counts, "Duplicate %s found " % (line[0])
+#     counts[line[0]] = int(line[1])
+# counts = filter(lambda x: x[1] >= SUB_WORD_FREQ, sorted(counts.items(), key=lambda x: x[1], reverse=True))
+# subword2ix = {PAD_TOK: 0}
+# for w, c in counts:
+#     subword2ix[w] = len(subword2ix)
+
 subword2ix = {PAD_TOK: 0}
-for w, c in counts:
-    subword2ix[w] = len(subword2ix)
+for line in open(SUB_WORD_FILE):
+    tokens = line.strip().split()
+    subword2ix[tokens[0]] = len(subword2ix)
 
 cp.dump(subword2ix, open(SUBWORD_VOCAB_FILE, 'wb'))
 
@@ -96,7 +101,8 @@ def index_data(data, window, bpe, subword2ix, syn_dict, ant_dict):
     """
     # Clean data:
     def index_segment(segmented_word, subword2ix):
-        s = [subword2ix[e] for e in segmented_word][:MAX_SPLIT]
+        # Haitian
+        s = [subword2ix[e] for e in segmented_word if e in subword2ix][:MAX_SPLIT]
         s += [subword2ix[PAD_TOK] for _ in xrange(MAX_SPLIT - len(s))]
         return s
     clean = []
@@ -138,6 +144,9 @@ class DataIterator(ut.Dataset):
     def index_word(self, w):
         d = self.bpe.segment(w)
         for i in xrange(len(d)):
+            # Haitian
+            if d[i] not in self.subword2ix:
+                d[i] = PAD_TOK
             assert d[i] in self.subword2ix, "Word %s not found " % (d[i])
             d[i] = self.subword2ix[d[i]]
         d = d[:MAX_SPLIT]

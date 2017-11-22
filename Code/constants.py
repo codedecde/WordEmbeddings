@@ -2,8 +2,8 @@
 Constants used
 '''
 # General Flags
-DEBUG = False
-AUTONLAB = True
+DEBUG = True
+AUTONLAB = False
 BASE_DIR = "/home/scratch/bpatra/" if AUTONLAB else "../"
 DATA_DIR = BASE_DIR + "Data/"
 VOCAB_FILE = DATA_DIR + ("word2ix.dat" if DEBUG else "word2ix_text8.dat")
