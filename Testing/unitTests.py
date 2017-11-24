@@ -2,6 +2,7 @@ from TestClass import TestClass
 import numpy as np
 import cPickle as cp
 import sys
+import pdb
 from gensim.models.keyedvectors import KeyedVectors
 
 
@@ -49,20 +50,25 @@ class Word2vecEmbeddings(TestClass):
 
 
 class SubwordsClass(TestClass):
-    def __init__(self, name, modelpath, bpe, subword2ix):
-        # Load bpe models
+    def __init__(self, name, modelpath, splitting_model, subword2ix):
+        # Load splitting Model
         self.name = name
-        self.bpe = bpe
+        self.splitting_model = splitting_model
         self.W_embed = np.load(modelpath)
         self.subword2ix = subword2ix
         super(SubwordsClass, self).__init__()
 
     def word2vec(self, w):
-        w_seg = self.bpe.segment(w)
-        w_embed = 0.
+        w_seg = self.splitting_model.segment(w)
+        w_embed = None
         for seg in w_seg:
             if seg in self.subword2ix:
+                if w_embed is None:
+                    w_embed = 0.
                 w_embed += self.W_embed[self.subword2ix[seg]]
+        # TODO : REMOVE THIS
+        if w_embed is not None:
+            w_embed = w_embed[150:]
         return w_embed
 
 
