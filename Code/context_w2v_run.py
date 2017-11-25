@@ -6,7 +6,7 @@ import pdb
 import numpy as np
 from collections import OrderedDict
 from utils import Progbar, getdata, make_directory
-from context_model_w2v import contextWord2vec
+from context_w2v_model import contextWord2vec
 from torch.autograd import Variable
 import argparse
 import torch.optim as optim
