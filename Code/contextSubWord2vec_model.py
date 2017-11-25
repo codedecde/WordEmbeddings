@@ -7,21 +7,26 @@ import pdb
 
 
 class contextSubWord2vec(nn.Module):
-    def __init__(self, num_units, n_dim, vocab_size, sparse=False, scale_grad=False, encoder_depth=2):
+    def __init__(self, num_units, n_dim, vocab_size, sparse=False, scale_grad=False, encoder_depth=2, cat=False):
         super(contextSubWord2vec, self).__init__()
         self.num_units = num_units
         self.vocab_size = vocab_size
         self.encoder_depth = encoder_depth
         self.n_dim = n_dim
+        self.cat = cat
+        self.in_dim = (n_dim // 2) if self.cat else n_dim
 
         for ix in xrange(encoder_depth):
             setattr(self, 'encoder_nn_{}'.format(ix), nn.Linear(n_dim, n_dim))
-        self.encoder_mu = nn.Linear(n_dim, n_dim // 2)
-        self.encoder_logvar = nn.Linear(n_dim, n_dim // 2)
+        enc_dim = (n_dim // 2) if self.cat else (n_dim // 4)
+        self.encoder_mu = nn.Linear(n_dim, enc_dim)
+        self.encoder_logvar = nn.Linear(n_dim, enc_dim)
+        if not self.cat:
+            self.upsample = nn.Linear(enc_dim, n_dim)
 
-        init_dim = np.sqrt(self.n_dim)
-        self.embedding_i = nn.Embedding(num_units, (n_dim // 2), padding_idx=0, sparse=sparse, scale_grad_by_freq=scale_grad)
-        e_i = np.random.uniform(-1. / init_dim, 1. / init_dim, (num_units, (n_dim // 2)))
+        init_dim = np.sqrt(num_units)
+        self.embedding_i = nn.Embedding(num_units, self.in_dim, padding_idx=0, sparse=sparse, scale_grad_by_freq=scale_grad)
+        e_i = np.random.uniform(-1. / init_dim, 1. / init_dim, (num_units, self.in_dim))
         e_i[0] = 0.
         self.embedding_i.weight = nn.Parameter(torch.Tensor(e_i))
         self.embedding_o = nn.Embedding(num_units, n_dim, padding_idx=0, sparse=sparse, scale_grad_by_freq=scale_grad)
@@ -83,10 +88,15 @@ class contextSubWord2vec(nn.Module):
         z = mu + sigma * random_seed
         kl_loss = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
         kl_loss /= (window_size * T)
+        if not self.cat:
+            upsample_z = F.tanh(self.upsample(z))
         # Decode
         eps = 1e-10  # For numerical stability
         partial_embed = torch.sum(self.embedding_i(w_ix), 1, keepdim=True)  # batch x 1 x (n_dim // 2)
-        inp_embed = torch.cat([z.unsqueeze(1), partial_embed], -1)  # batch x 1 x n_dim
+        if self.cat:
+            inp_embed = torch.cat([z.unsqueeze(1), partial_embed], -1)  # batch x 1 x n_dim
+        else:
+            inp_embed = partial_embed + upsample_z.unsqueeze(1)
         p_embed = self.lookup(p_ix, self.embedding_o)  # batch x window x n_dim
         n_embed = self.lookup(n_ix, self.embedding_o)  # batch x neg_samples x n_dim
         p_score = torch.sum(F.softplus((inp_embed * p_embed).sum(2) + eps, beta=-1)).neg()
