@@ -2,8 +2,8 @@
 Constants used
 '''
 # General Flags
-DEBUG = False
-AZURE = True
+DEBUG = True
+AZURE = False
 BASE_DIR = "/home/bass/DataDir/Embeddings/" if AZURE else "../"
 DATA_DIR = BASE_DIR + "Data/"
 VOCAB_FILE = DATA_DIR + ("word2ix.dat" if DEBUG else "word2ix_text8.dat")
