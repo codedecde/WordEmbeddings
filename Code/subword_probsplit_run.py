@@ -202,9 +202,12 @@ def parse_args():
     parser.add_argument("-b", "--batch", help="Batch Size", dest="batch", default=128, type=int)
     parser.add_argument("-e", "--epochs", help="Epochs", dest="epochs", default=5, type=int)
     parser.add_argument('-o', "--optimizer", help="Optimizer", dest='optimizer', default="Adagrad", type=str)
+    parser.add_argument("-lrd", "--lr_decay", help="LR Decay", dest="lr_decay", default="True", type=str)
     args = parser.parse_args()
     convert_boolean(args, 'scale_grad')
+    convert_boolean(args, 'lr_decay')
     return args
+
 
 args = parse_args()
 window = args.window
@@ -244,7 +247,7 @@ def save_model(model, filename):
     make_directory(save_dir)
     np.save(filename, weights)
 
-
+new_lr = lr
 for epoch in xrange(N_EPOCHS):
     n_batches = -(-len(iterator) // BATCH_SIZE)
     bar = Progbar(n_batches)
@@ -257,19 +260,20 @@ for epoch in xrange(N_EPOCHS):
         loss.backward()
         optimizer.step()
         optimizer.zero_grad()
-        words_processed += BATCH_SIZE
-        new_lr = lr * max(1e-4, 1. - (words_processed / (len(iterator) * N_EPOCHS)))
-        for param_groups in optimizer.param_groups:
-            param_groups['lr'] = new_lr
+        if args.lr_decay:
+            words_processed += BATCH_SIZE
+            new_lr = lr * max(1e-4, 1. - (words_processed / (len(iterator) * N_EPOCHS)))
+            for param_groups in optimizer.param_groups:
+                param_groups['lr'] = new_lr
         loss, p_score, n_score, s_score, a_score = map(lambda x: getdata(x).numpy()[0], [loss, p_score, n_score, s_score, a_score])
         bar.update(ix + 1, values=[('l', loss), ('p', p_score), ('n', n_score), ('s', s_score), ('a', a_score), ('lr', new_lr)])
     # Save model for persistance
     if epoch != N_EPOCHS - 1:
-        save_file = SAVE_PREFIX + "optim_{}_sg_{}_w_{}_ns_{}_s_{}_a_{}_partial".format(args.optimizer, args.scale_grad, args.window, args.neg_samples, args.synonyms, args.antonyms)
+        save_file = SAVE_PREFIX + "optim_{}_sg_{}_lrd_{}_w_{}_ns_{}_s_{}_a_{}_partial".format(args.optimizer, args.scale_grad, args.lr_decay, args.window, args.neg_samples, args.synonyms, args.antonyms)
         save_model(sw2v, save_file)
     else:
-        partial_save_file = SAVE_PREFIX + "optim_{}_sg_{}_w_{}_ns_{}_s_{}_a_{}_partial.npy".format(args.optimizer, args.scale_grad, args.window, args.neg_samples, args.synonyms, args.antonyms)
+        partial_save_file = SAVE_PREFIX + "optim_{}_sg_{}_lrd_{}_w_{}_ns_{}_s_{}_a_{}_partial.npy".format(args.optimizer, args.scale_grad, args.lr_decay, args.window, args.neg_samples, args.synonyms, args.antonyms)
         os.remove(partial_save_file)
-        save_file = SAVE_PREFIX + "optim_{}_sg_{}_w_{}_ns_{}_s_{}_a_{}".format(args.optimizer, args.scale_grad, args.window, args.neg_samples, args.synonyms, args.antonyms)
+        save_file = SAVE_PREFIX + "optim_{}_sg_{}_lrd_{}_w_{}_ns_{}_s_{}_a_{}".format(args.optimizer, args.scale_grad, args.lr_decay, args.window, args.neg_samples, args.synonyms, args.antonyms)
         save_model(sw2v, save_file)
 print ''
