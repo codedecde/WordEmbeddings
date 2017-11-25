@@ -160,12 +160,14 @@ def parse_args():
     parser.add_argument("-ns", "--neg_samples", help="window size", dest="neg_samples", default=25, type=int)
     parser.add_argument("-s", "--synonyms", help="Synonyms", dest="synonyms", default=4, type=int)
     parser.add_argument("-sg", "--scale_grad", help="Scale Gradients by frequency", dest="scale_grad", default="False", type=str)
+    parser.add_argument("-cat", "--concatenate", help="Combine by concatenation", dest="cat", default="True", type=str)
     parser.add_argument("-a", "--antonyms", help="Antonyms", dest="antonyms", default=4, type=int)
     parser.add_argument("-b", "--batch", help="Batch Size", dest="batch", default=128, type=int)
     parser.add_argument("-e", "--epochs", help="Epochs", dest="epochs", default=5, type=int)
     parser.add_argument('-o', "--optimizer", help="Optimizer", dest='optimizer', default="Adagrad", type=str)
     args = parser.parse_args()
     convert_boolean(args, 'scale_grad')
+    convert_boolean(args, 'cat')
     return args
 
 
@@ -185,7 +187,7 @@ N_EPOCHS = args.epochs
 # lr = 0.001
 lr = 0.025
 bar = Progbar(N_EPOCHS)
-w2v = contextWord2vec(len(word2ix), 300, len(word2ix_nostop), sparse=False, scale_grad=args.scale_grad)
+w2v = contextWord2vec(len(word2ix), 300, len(word2ix_nostop), sparse=False, scale_grad=args.scale_grad, cat=args.cat)
 
 if use_cuda:
     w2v = w2v.cuda()
@@ -229,11 +231,11 @@ for epoch in xrange(N_EPOCHS):
         bar.update(ix + 1, values=[('l', loss), ('kl', kl_loss), ('d', d_loss), ('p', p_score), ('n', n_score), ('s', s_score), ('a', a_score), ('lr', new_lr)])
     # Save model for persistence
     if epoch != N_EPOCHS - 1:
-        save_file = SAVE_PREFIX + "context_optim_{}_sg_{}_w_{}_ns_{}_s_{}_a_{}_partial".format(args.optimizer, args.scale_grad, args.window, args.neg_samples, args.synonyms, args.antonyms)
+        save_file = SAVE_PREFIX + "context_optim_{}_sg_{}_cat_{}_w_{}_ns_{}_s_{}_a_{}_partial".format(args.optimizer, args.scale_grad, args.cat, args.window, args.neg_samples, args.synonyms, args.antonyms)
         save_model(w2v, save_file)
     else:
-        partial_save_file = SAVE_PREFIX + "context_optim_{}_sg_{}_w_{}_ns_{}_s_{}_a_{}_partial.model".format(args.optimizer, args.scale_grad, args.window, args.neg_samples, args.synonyms, args.antonyms)
+        partial_save_file = SAVE_PREFIX + "context_optim_{}_sg_{}_cat_{}_w_{}_ns_{}_s_{}_a_{}_partial.model".format(args.optimizer, args.scale_grad, args.cat, args.window, args.neg_samples, args.synonyms, args.antonyms)
         os.remove(partial_save_file)
-        save_file = SAVE_PREFIX + "context_optim_{}_sg_{}_w_{}_ns_{}_s_{}_a_{}".format(args.optimizer, args.scale_grad, args.window, args.neg_samples, args.synonyms, args.antonyms)
+        save_file = SAVE_PREFIX + "context_optim_{}_sg_{}_cat_{}_w_{}_ns_{}_s_{}_a_{}".format(args.optimizer, args.scale_grad, args.cat, args.window, args.neg_samples, args.synonyms, args.antonyms)
         save_model(w2v, save_file)
 print ''
