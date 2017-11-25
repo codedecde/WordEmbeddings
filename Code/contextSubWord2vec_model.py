@@ -77,8 +77,10 @@ class contextSubWord2vec(nn.Module):
         # Encode Context
         mu, logvar = self.encode(c_ix)  # mu: batch x latent_dim, logvar: batch x latent_dim
         sigma = torch.exp(logvar / 2.)
-        random_seed = np.random.multivariate_normal(np.zeros((sigma.size(1),)), np.eye(sigma.size(1), sigma.size(1)), batch_size)
-        z = mu + sigma * Variable(torch.Tensor(random_seed))
+        random_seed = Variable(torch.Tensor(np.random.multivariate_normal(np.zeros((sigma.size(1),)), np.eye(sigma.size(1), sigma.size(1)), batch_size)))
+        if torch.cuda.is_available():
+            random_seed = random_seed.cuda()
+        z = mu + sigma * random_seed
         kl_loss = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
         kl_loss /= (window_size * T)
         # Decode
