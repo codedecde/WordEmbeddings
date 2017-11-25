@@ -201,11 +201,10 @@ class Progbar(object):
         self.update(self.seen_so_far + n, values)
 
 
-def getdata(tensor):
-    if torch.cuda.is_available():
-        return tensor.cpu().data
-    else:
-        return tensor.data
+def getdata(tensor, variable=True):
+    t = tensor.cpu() if torch.cuda.is_available() else tensor
+    return t.data if variable else t
+
 
 def make_directory(dir_name):
     """
