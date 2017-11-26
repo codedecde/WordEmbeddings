@@ -7,21 +7,22 @@ import pdb
 
 
 class contextWord2vec(nn.Module):
-    def __init__(self, num_words, n_dim, vocab_size, sparse=False, scale_grad=False, encoder_depth=2, cat=False):
+    def __init__(self, num_words, n_dim, vocab_size, sparse=False, scale_grad=False, encoder_depth=2, mode="cat"):
         super(contextWord2vec, self).__init__()
         self.num_words = num_words
         self.n_dim = n_dim
         self.encoder_depth = encoder_depth
-        self.cat = cat
-        self.in_dim = (n_dim // 2) if self.cat else n_dim
+        self.mode = mode
+        self.in_dim = (n_dim // 2) if self.mode == "cat" else n_dim
         for ix in xrange(encoder_depth):
             setattr(self, 'encoder_nn_{}'.format(ix), nn.Linear(n_dim, n_dim))
-        enc_dim = (n_dim // 2) if self.cat else (n_dim // 4)
+        enc_dim = (n_dim // 2) if self.mode == "cat" else (n_dim // 4)
         self.encoder_mu = nn.Linear(n_dim, enc_dim)
         self.encoder_logvar = nn.Linear(n_dim, enc_dim)
-        if not self.cat:
+        if not self.mode == "cat":
             self.upsample = nn.Linear(enc_dim, n_dim)
-
+        if self.mode == "tanh":
+            self.project_embed = nn.Linear(2 * n_dim, n_dim)
         init_dim = np.sqrt(num_words)
         self.embedding_i = nn.Embedding(num_words, self.in_dim, padding_idx=0, sparse=sparse, scale_grad_by_freq=scale_grad)
         e_i = np.random.uniform(-1. / init_dim, 1. / init_dim, (num_words, self.in_dim))
@@ -74,17 +75,28 @@ class contextWord2vec(nn.Module):
             random_seed = random_seed.cuda()
         z = mu + sigma * random_seed
         kl_loss = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
-        kl_loss /= (window_size * neg_samples)
-        if not self.cat:
+        if self.mode in set(["cat", "sum", "tanh"]):
+            kl_loss /= (window_size * neg_samples)
+        else:
+            kl_loss /= (neg_samples * window_size)
+        if not self.mode == "cat":
             upsample_z = F.tanh(self.upsample(z))
         # Decode
         eps = 1e-10  # For numerical stability
         partial_embed = self.embedding_i(w_ix)  # batch x 1 x (n_dim)
 
-        if self.cat:
+        if self.mode == "cat":
             inp_embed = torch.cat([z.unsqueeze(1), partial_embed], -1)
-        else:
+        elif self.mode == "sum":
             inp_embed = partial_embed + upsample_z.unsqueeze(1)
+        elif self.mode == "prod":
+            inp_embed = partial_embed * upsample_z.unsqueeze(1)
+        elif self.mode == "tanh":
+            inp_embed = torch.cat([upsample_z, partial_embed.squeeze(1)], -1)
+            inp_embed = F.tanh(self.project_embed(inp_embed))
+            inp_embed = inp_embed.unsqueeze(1)
+        else:
+            raise RuntimeError("Mode %s not recognized" % (self.mode))
         p_embed = self.embedding_o(p_ix)  # batch x window x n_dim
         n_embed = self.embedding_o(neg_ix)  # batch x (window * neg_samples) x n_dim
         p_score = torch.sum(F.softplus((inp_embed * p_embed).sum(2) + eps, beta=-1)).neg()
