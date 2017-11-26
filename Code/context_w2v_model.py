@@ -14,13 +14,12 @@ class contextWord2vec(nn.Module):
         self.encoder_depth = encoder_depth
         self.mode = mode
         self.in_dim = (n_dim // 2) if self.mode == "cat" else n_dim
+        self.enc_embed_dim = n_dim if self.mode == "cat" else (2 * n_dim)
         for ix in xrange(encoder_depth):
-            setattr(self, 'encoder_nn_{}'.format(ix), nn.Linear(n_dim, n_dim))
-        enc_dim = (n_dim // 2) if self.mode == "cat" else (n_dim // 4)
-        self.encoder_mu = nn.Linear(n_dim, enc_dim)
-        self.encoder_logvar = nn.Linear(n_dim, enc_dim)
-        if not self.mode == "cat":
-            self.upsample = nn.Linear(enc_dim, n_dim)
+            setattr(self, 'encoder_nn_{}'.format(ix), nn.Linear(self.enc_embed_dim, self.enc_embed_dim))
+        self.enc_dim = (n_dim // 2) if self.mode == "cat" else n_dim
+        self.encoder_mu = nn.Linear(self.enc_embed_dim, self.enc_dim)
+        self.encoder_logvar = nn.Linear(self.enc_embed_dim, self.enc_dim)
         if self.mode == "tanh":
             self.project_embed = nn.Linear(2 * n_dim, n_dim)
         init_dim = np.sqrt(num_words)
@@ -33,7 +32,7 @@ class contextWord2vec(nn.Module):
         e_o[0] = 0.
         self.embedding_o.weight = nn.Parameter(torch.Tensor(e_o))
         self.embedding_c = nn.Embedding(vocab_size, n_dim)
-        e_c = np.random.uniform(-1. / init_dim, 1. / init_dim, (vocab_size, n_dim))
+        e_c = np.random.uniform(-1. / init_dim, 1. / init_dim, (vocab_size, self.enc_embed_dim))
         e_c[0] = 0.
         self.embedding_c.weight = nn.Parameter(torch.Tensor(e_c))
 
@@ -78,9 +77,8 @@ class contextWord2vec(nn.Module):
         if self.mode in set(["cat", "sum", "tanh"]):
             kl_loss /= (window_size * neg_samples)
         else:
-            kl_loss /= (neg_samples * window_size)
-        if not self.mode == "cat":
-            upsample_z = F.tanh(self.upsample(z))
+            kl_loss /= (neg_samples * window_size * self.enc_dim)
+
         # Decode
         eps = 1e-10  # For numerical stability
         partial_embed = self.embedding_i(w_ix)  # batch x 1 x (n_dim)
@@ -88,11 +86,11 @@ class contextWord2vec(nn.Module):
         if self.mode == "cat":
             inp_embed = torch.cat([z.unsqueeze(1), partial_embed], -1)
         elif self.mode == "sum":
-            inp_embed = partial_embed + upsample_z.unsqueeze(1)
+            inp_embed = partial_embed + z.unsqueeze(1)
         elif self.mode == "prod":
-            inp_embed = partial_embed * upsample_z.unsqueeze(1)
+            inp_embed = partial_embed * z.unsqueeze(1)
         elif self.mode == "tanh":
-            inp_embed = torch.cat([upsample_z, partial_embed.squeeze(1)], -1)
+            inp_embed = torch.cat([z, partial_embed.squeeze(1)], -1)
             inp_embed = F.tanh(self.project_embed(inp_embed))
             inp_embed = inp_embed.unsqueeze(1)
         else:
