@@ -105,3 +105,39 @@ class contextWord2vec(nn.Module):
             n_score / batch_size,\
             syn_score / batch_size,\
             ant_score / batch_size
+
+
+def load_context_word_model(state_dict, cat=False):
+    if type(state_dict) == str:
+        state_dict = torch.load(state_dict)
+    num_words, n_dim = state_dict['embedding_o.weight'].size()
+    vocab_size = state_dict['embedding_c.weight'].size(0)
+    model = contextWord2vec(num_words, n_dim, vocab_size, cat=cat)
+    model.load_state_dict(state_dict)
+    return model
+
+
+def word_embedding_given_context_and_word(model, context, word, word2ix_nostop, word2ix, numpy=True):
+    ix_ctxt = []
+    for w in context:
+        if w in word2ix_nostop:
+            ix_ctxt.append(word2ix_nostop[w])
+    if len(ix_ctxt) > 0.:
+        ix_ctxt = Variable(torch.LongTensor([ix_ctxt]))
+        encoded_mu, encoded_logvar = model.encode(ix_ctxt)
+    else:
+        enc_dim = model.encoder_mu.out_features
+        encoded_mu = Variable(torch.zeros(1, enc_dim))
+    ix_word = word2ix[word]
+    ix_word = Variable(torch.LongTensor([ix_word]))
+    encoded_word = model.embedding_i(ix_word)
+    if model.cat:
+        embedding = torch.cat([encoded_mu, encoded_word], -1).view(-1, 1)
+    else:
+        upsampled = model.upsample(encoded_mu)
+        embedding = (upsampled + encoded_word).view(-1, 1)
+    if numpy:
+        embedding = embedding.data.numpy().flatten()
+        encoded_mu = encoded_mu.data.numpy().flatten()
+        encoded_word = encoded_word.data.numpy().flatten()
+    return embedding, encoded_mu, encoded_word
