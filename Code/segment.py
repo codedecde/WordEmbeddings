@@ -74,7 +74,7 @@ def loadmodel(modelfile):
 
 
 if __name__ == '__main__':
-	threshold = 10
+	threshold = 20
 	trainfile = sys.argv[1]
 	modelfile = sys.argv[2]
 	#testfile = sys.argv[3]
